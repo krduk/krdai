@@ -4,7 +4,7 @@ import confetti from 'canvas-confetti';
 // State Management
 const STATE = {
   apiKey: localStorage.getItem('gemini_api_key') || '',
-  model: localStorage.getItem('gemini_model') || 'gemini-1.5-flash',
+  model: localStorage.getItem('gemini_model') || 'gemini-1.5-flash-latest',
   autoSpeech: localStorage.getItem('auto_speech') !== 'false',
   childName: localStorage.getItem('child_name') || 'きみ',
   honorific: localStorage.getItem('honorific') || 'くん',
@@ -163,13 +163,43 @@ async function handleAskQuestion() {
 
   try {
     const genAI = new GoogleGenerativeAI(STATE.apiKey);
-    const model = genAI.getGenerativeModel({
-      model: STATE.model,
-      systemInstruction: getSystemPrompt(childFullName)
-    });
+    
+    // Model fallback sequence
+    const modelCandidates = Array.from(new Set([
+      STATE.model,
+      'gemini-1.5-flash-latest',
+      'gemini-1.5-flash-8b',
+      'gemini-2.0-flash-exp',
+      'gemini-1.5-pro-latest'
+    ]));
 
-    const result = await model.generateContent(question);
-    const responseText = result.response.text();
+    let responseText = null;
+    let lastError = null;
+
+    for (const modelName of modelCandidates) {
+      try {
+        console.log(`Trying Gemini model: ${modelName}`);
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          systemInstruction: getSystemPrompt(childFullName)
+        });
+
+        const result = await model.generateContent(question);
+        responseText = result.response.text();
+        if (responseText) {
+          STATE.model = modelName; // Save successful model name
+          localStorage.setItem('gemini_model', modelName);
+          break;
+        }
+      } catch (err) {
+        console.warn(`Model ${modelName} failed:`, err);
+        lastError = err;
+      }
+    }
+
+    if (!responseText) {
+      throw lastError || new Error('利用可能なGeminiモデルが見つかりませんでした。');
+    }
 
     const parsedDialogue = parseDialogue(responseText);
     STATE.currentDialogue = parsedDialogue;
@@ -181,7 +211,7 @@ async function handleAskQuestion() {
     }
   } catch (error) {
     console.error('Error fetching Gemini response:', error);
-    alert(`エラーが発生しました: ${error.message || error}`);
+    alert(`エラーが発生しました:\n${error.message || error}\n\n※ APIキーが正しいか、Google AI StudioでGemini APIが有効になっているかご確認ください。`);
   } finally {
     elements.loadingState.classList.add('hidden');
   }
