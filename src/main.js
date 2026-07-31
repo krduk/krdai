@@ -13,19 +13,20 @@ const STATE = {
   isDisplayingDialogue: false
 };
 
-// Character Config (Added Onee-san)
+// Character Config
 const CHARACTERS = {
   'こども': { emoji: '👦', class: 'speech-kodomo', pitch: 1.4, rate: 1.1 },
   '博士': { emoji: '🔬', class: 'speech-hakase', pitch: 0.9, rate: 1.0 },
   'おばあちゃん': { emoji: '👵', class: 'speech-obachan', pitch: 0.8, rate: 0.85 },
-  'お姉さん': { emoji: '👩', class: 'speech-oneesan', pitch: 1.25, rate: 1.05 },
-  '案内役': { emoji: '📢', class: 'speech-anai', pitch: 1.1, rate: 1.0 }
+  'お姉さん': { emoji: '👩', class: 'speech-oneesan', pitch: 1.25, rate: 1.05 }
 };
 
-// System Prompt Template with 4 personas
+const CHARACTER_NAMES = ['こども', '博士', 'おばあちゃん', 'お姉さん'];
+
+// System Prompt Template
 const getSystemPrompt = (childFullName) => `
 # 目的
-ユーザー（子供）の質問に対して、4人の異なる性格のキャラクターがそれぞれの視点で意見を出し合い、最終的に子供自身にどう思うかを考えてもらうためのAIです。
+ユーザー（子供）の質問に対して、4人の異なる性格のAIキャラクターがそれぞれの視点で意見を出し合い、最終的に子供自身にどう思うかを考えてもらうためのAIです。
 
 # キャラクター（ペルソナ）設定
 1. **こども（ひらめき・楽しさ担当）**：
@@ -37,20 +38,20 @@ const getSystemPrompt = (childFullName) => `
 4. **お姉さん（共感・気持ち・整理担当）**：
    - 性格：優しくて親身。「なるほどね！」「〜〜な気持ちも分かるな〜」と共感し、みんなの意見を優しくまとめる補助をする。
 
-# 応答のルール
+# 応答の重要ルール
+- 外部の「案内役」という別のキャラクターは作らないでください。
+- **案内役（進行・最初のあいさつ＆最後の問いかけ）は、【こども、博士、おばあちゃん、お姉さん】の4人のうち誰か1人が担当**してください。
 - 子供が理解しやすい、優しく簡単な言葉（小学校低学年向け）を使ってください。
 - 答えをすぐに教えるのではなく、それぞれの意見を出すだけにとどめてください。
-- 音声で読み上げられたときに誰のセリフか分かりやすいよう、以下のような【劇のセリフ形式】で順番に掛け合いをさせて出力してください。長文は避け、1発言あたり1〜2文程度のテンポよいセリフにしてください。
-- 案内役は4人のうちいずれかが行ってもよいし、案内役として発言してもよい。
-- 最後に必ず「${childFullName}は、どう思う？」と優しく問いかけて終わってください。
+- 誰のセリフか分かりやすいよう、以下の【劇のセリフ形式】で順番に掛け合いをさせて出力してください。長文は避け、1発言あたり1〜2文程度のテンポよいセリフにしてください。
+- 最後に会話を進行しているキャラクターが必ず「${childFullName}は、どう思う？」と優しく問いかけて終わってください。
 
-# 出力フォーマットの例
-案内役「面白い質問だね！みんなはどう思う？」
+# 出力フォーマットの例（お姉さんが進行役の場合）
+お姉さん「面白い質問だね！みんなはどう思う？」
 こども「ぼくは〜〜だと思うな！だって楽しそうじゃん！」
 博士「〜〜という理由もあります。」
 おばあちゃん「う〜ん、でも〜〜なこともあるかも？」
-お姉さん「なるほど！みんな色んな考えがあって素敵だね。」
-案内役「みんな違って面白いね。${childFullName}は、どう思う？」
+お姉さん「みんな違って面白いね！${childFullName}は、どう思う？」
 `;
 
 // DOM Elements
@@ -154,7 +155,6 @@ async function handleAskQuestion() {
     return;
   }
 
-  // Stop any active speech
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
   }
@@ -185,7 +185,7 @@ async function handleAskQuestion() {
     const parsedDialogue = parseDialogue(responseText);
     STATE.currentDialogue = parsedDialogue;
 
-    // Render dialogue with sequential live conversation effect
+    // Render dialogue with typing effect and sequential live play
     await renderDialogueSequential(parsedDialogue, childFullName);
 
   } catch (error) {
@@ -201,7 +201,7 @@ function parseDialogue(rawText) {
   const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
   const dialogue = [];
 
-  const regex = /^(こども|博士|おばあちゃん|お姉さん|案内役)[「:：](.*)[」]?$/;
+  const regex = /^(こども|博士|おばあちゃん|お姉さん)[「:：](.*)[」]?$/;
 
   lines.forEach(line => {
     const match = line.match(regex);
@@ -210,14 +210,16 @@ function parseDialogue(rawText) {
       let text = match[2].replace(/[」]$/, '');
       dialogue.push({ speaker, text });
     } else {
-      dialogue.push({ speaker: '案内役', text: line });
+      // Fallback speaker if unparsed, pick random from the 4
+      const fallbackSpeaker = CHARACTER_NAMES[Math.floor(Math.random() * CHARACTER_NAMES.length)];
+      dialogue.push({ speaker: fallbackSpeaker, text: line.replace(/^[案内役|進行役][「:：]/, '').replace(/[」]$/, '') });
     }
   });
 
   return dialogue;
 }
 
-// Render Dialogue Sequentially like a real live play
+// Sequential Live Play with Character-by-Character Typing Effect
 async function renderDialogueSequential(dialogue, childFullName) {
   STATE.isDisplayingDialogue = true;
   elements.dialogueList.innerHTML = '';
@@ -226,7 +228,7 @@ async function renderDialogueSequential(dialogue, childFullName) {
 
   for (let i = 0; i < dialogue.length; i++) {
     const item = dialogue[i];
-    const config = CHARACTERS[item.speaker] || CHARACTERS['案内役'];
+    const config = CHARACTERS[item.speaker] || CHARACTERS['お姉さん'];
 
     const itemEl = document.createElement('div');
     itemEl.className = `speech-bubble-item ${config.class}`;
@@ -234,7 +236,7 @@ async function renderDialogueSequential(dialogue, childFullName) {
       <div class="speech-avatar">${config.emoji}</div>
       <div class="speech-content">
         <div class="speech-speaker">${item.speaker}</div>
-        <div class="speech-text">${escapeHtml(item.text)}</div>
+        <div class="speech-text"><span class="typed-text"></span><span class="typing-cursor"></span></div>
         <div class="speech-action">
           <button class="btn-speak-single" data-index="${i}">🔊 きく</button>
         </div>
@@ -242,20 +244,31 @@ async function renderDialogueSequential(dialogue, childFullName) {
     `;
 
     elements.dialogueList.appendChild(itemEl);
-
-    // Scroll to the latest speaking character
     itemEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-    // Speak automatically if enabled
+    const textSpan = itemEl.querySelector('.typed-text');
+    const cursorSpan = itemEl.querySelector('.typing-cursor');
+
+    // Start speech in parallel with typing animation if enabled
+    let speechPromise = Promise.resolve();
     if (STATE.autoSpeech && 'speechSynthesis' in window) {
-      await speakUtteranceAsync(item);
-    } else {
-      // Small pause between text bubbles if auto speech is off
-      await new Promise(resolve => setTimeout(resolve, 1200));
+      speechPromise = speakUtteranceAsync(item);
     }
+
+    // Type characters one by one
+    await typeTextAsync(textSpan, item.text, 35);
+    
+    // Remove typing cursor after finished
+    if (cursorSpan) {
+      cursorSpan.style.display = 'none';
+    }
+
+    // Wait for speech synthesis to complete if autoSpeech is on
+    await speechPromise;
+    await new Promise(r => setTimeout(r, 400));
   }
 
-  // Attach individual button click handlers
+  // Attach individual click handlers for re-playing speech
   document.querySelectorAll('.btn-speak-single').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const idx = e.target.dataset.index;
@@ -272,7 +285,24 @@ async function renderDialogueSequential(dialogue, childFullName) {
   STATE.isDisplayingDialogue = false;
 }
 
-// Async speech helper to wait until utterance ends before showing next speaker
+// Type text character by character (Typewriter Effect)
+function typeTextAsync(element, text, speedMs = 35) {
+  return new Promise((resolve) => {
+    let index = 0;
+    element.textContent = '';
+    const timer = setInterval(() => {
+      if (index < text.length) {
+        element.textContent += text.charAt(index);
+        index++;
+      } else {
+        clearInterval(timer);
+        resolve();
+      }
+    }, speedMs);
+  });
+}
+
+// Async speech synthesis helper
 function speakUtteranceAsync(dialogueItem) {
   return new Promise((resolve) => {
     if (!('speechSynthesis' in window)) {
@@ -280,7 +310,7 @@ function speakUtteranceAsync(dialogueItem) {
       return;
     }
 
-    const config = CHARACTERS[dialogueItem.speaker] || CHARACTERS['案内役'];
+    const config = CHARACTERS[dialogueItem.speaker] || CHARACTERS['お姉さん'];
     const textToSpeak = `${dialogueItem.speaker}。${dialogueItem.text}`;
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
 
@@ -288,13 +318,14 @@ function speakUtteranceAsync(dialogueItem) {
     utterance.pitch = config.pitch;
     utterance.rate = config.rate;
 
-    utterance.onend = () => resolve();
-    utterance.onerror = () => resolve();
-
-    // Fallback safety timeout in case speech synth gets stuck
-    const safetyTimeout = setTimeout(() => resolve(), 8000);
+    const safetyTimeout = setTimeout(() => resolve(), 9000);
 
     utterance.onend = () => {
+      clearTimeout(safetyTimeout);
+      resolve();
+    };
+
+    utterance.onerror = () => {
       clearTimeout(safetyTimeout);
       resolve();
     };
@@ -311,7 +342,7 @@ function speakSingle(dialogueItem) {
 
   window.speechSynthesis.cancel();
 
-  const config = CHARACTERS[dialogueItem.speaker] || CHARACTERS['案内役'];
+  const config = CHARACTERS[dialogueItem.speaker] || CHARACTERS['お姉さん'];
   const utterance = new SpeechSynthesisUtterance(dialogueItem.text);
   utterance.lang = 'ja-JP';
   utterance.pitch = config.pitch;
@@ -326,7 +357,7 @@ function readAllDialogue() {
   window.speechSynthesis.cancel();
 
   STATE.currentDialogue.forEach((item) => {
-    const config = CHARACTERS[item.speaker] || CHARACTERS['案内役'];
+    const config = CHARACTERS[item.speaker] || CHARACTERS['お姉さん'];
     const textToSpeak = `${item.speaker}。${item.text}`;
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
     utterance.lang = 'ja-JP';
@@ -361,12 +392,12 @@ function handleSaveThought() {
   renderSavedThoughts();
 
   confetti({
-    particleCount: 100,
-    spread: 70,
+    particleCount: 120,
+    spread: 80,
     origin: { y: 0.6 }
   });
 
-  alert('ノートにほぞんしたよ！よく考えたね！🌟');
+  alert('思考ログをデータベースに保存しました！🌟');
 }
 
 function renderSavedThoughts() {
@@ -378,8 +409,8 @@ function renderSavedThoughts() {
   elements.savedThoughtsSection.classList.remove('hidden');
   elements.savedThoughtsList.innerHTML = STATE.savedThoughts.map(t => `
     <div class="saved-item">
-      <div class="saved-q">❓ しつもん: ${escapeHtml(t.question)}</div>
-      <div class="saved-a">💡 ${escapeHtml(t.author)}の考え: ${escapeHtml(t.opinion)} <small>(${t.date})</small></div>
+      <div class="saved-q">🚀 ミッション: ${escapeHtml(t.question)}</div>
+      <div class="saved-a">💡 ${escapeHtml(t.author)}の思考ログ: ${escapeHtml(t.opinion)} <small>(${t.date})</small></div>
     </div>
   `).join('');
 }
