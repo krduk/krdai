@@ -22,6 +22,11 @@
   --obachan-bg: #F0FFF4;
   --obachan-border: #9AE6B4;
 
+  --oneesan-color: #D69E2E;
+  --oneesan-bg: #FFF5F7;
+  --oneesan-border: #FED7E2;
+  --oneesan-text-color: #D53F8C;
+
   --anai-color: #D69E2E;
   --anai-bg: #FEFCBF;
   --anai-border: #F6E05E;
@@ -125,15 +130,15 @@ body {
 /* Character Parade Banner */
 .character-banner {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
   margin-bottom: 24px;
 }
 
 .character-card {
   display: flex;
   align-items: center;
-  padding: 14px 18px;
+  padding: 12px 14px;
   border-radius: var(--radius-md);
   background: white;
   border: 2px solid transparent;
@@ -156,6 +161,10 @@ body {
 .char-obachan {
   background: var(--obachan-bg);
   border-color: var(--obachan-border);
+}
+.char-oneesan {
+  background: var(--oneesan-bg);
+  border-color: var(--oneesan-border);
 }
 
 .char-avatar {
@@ -488,6 +497,12 @@ body {
 }
 .speech-obachan .speech-speaker { color: var(--obachan-color); }
 
+.speech-oneesan .speech-content {
+  background: var(--oneesan-bg);
+  border-color: var(--oneesan-border);
+}
+.speech-oneesan .speech-speaker { color: var(--oneesan-text-color); }
+
 .speech-anai .speech-content {
   background: var(--anai-bg);
   border-color: var(--anai-border);
@@ -664,14 +679,93 @@ body {
   display: none !important;
 }
 
-/* Responsive adjustments */
-@media (max-width: 600px) {
-  .header-content {
-    flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
+/* Responsive & Mobile Enhancements */
+@media (max-width: 640px) {
+  #app {
+    padding: 0 10px;
   }
+
+  .app-header {
+    padding: 16px 14px;
+    border-radius: 0 0 16px 16px;
+    margin-bottom: 16px;
+  }
+
+  .title-text {
+    font-size: 1.35rem;
+  }
+
+  .subtitle {
+    font-size: 0.85rem;
+  }
+
+  .character-banner {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .character-card {
+    padding: 10px 10px;
+  }
+
+  .char-avatar {
+    font-size: 1.6rem;
+    width: 38px;
+    height: 38px;
+    margin-right: 8px;
+  }
+
+  .char-name {
+    font-size: 0.95rem;
+  }
+
+  .char-role {
+    font-size: 0.7rem;
+  }
+
+  .card {
+    padding: 18px 14px;
+    border-radius: var(--radius-md);
+  }
+
+  .input-group {
+    gap: 10px;
+  }
+
+  #question-input {
+    font-size: 1rem;
+    padding: 12px;
+  }
+
+  .btn-primary {
+    font-size: 1.1rem;
+    padding: 14px 20px;
+    width: 100%;
+  }
+
+  .tag-btn {
+    font-size: 0.85rem;
+    padding: 6px 12px;
+    width: 100%;
+    text-align: left;
+  }
+
+  .speech-bubble-item {
+    gap: 10px;
+  }
+
+  .speech-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 1.6rem;
+  }
+
   .speech-content {
-    max-width: 90%;
+    max-width: 88%;
+    padding: 12px 14px;
+  }
+
+  .speech-text {
+    font-size: 1rem;
   }
 }

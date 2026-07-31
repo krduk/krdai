@@ -9,21 +9,23 @@ const STATE = {
   childName: localStorage.getItem('child_name') || 'きみ',
   honorific: localStorage.getItem('honorific') || 'くん',
   savedThoughts: JSON.parse(localStorage.getItem('saved_thoughts') || '[]'),
-  currentDialogue: []
+  currentDialogue: [],
+  isDisplayingDialogue: false
 };
 
-// Character Config
+// Character Config (Added Onee-san)
 const CHARACTERS = {
   'こども': { emoji: '👦', class: 'speech-kodomo', pitch: 1.4, rate: 1.1 },
   '博士': { emoji: '🔬', class: 'speech-hakase', pitch: 0.9, rate: 1.0 },
   'おばあちゃん': { emoji: '👵', class: 'speech-obachan', pitch: 0.8, rate: 0.85 },
+  'お姉さん': { emoji: '👩', class: 'speech-oneesan', pitch: 1.25, rate: 1.05 },
   '案内役': { emoji: '📢', class: 'speech-anai', pitch: 1.1, rate: 1.0 }
 };
 
-// System Prompt Template from user prompt
+// System Prompt Template with 4 personas
 const getSystemPrompt = (childFullName) => `
 # 目的
-ユーザー（子供）の質問に対して、3人の異なる性格のキャラクターがそれぞれの視点で意見を出し合い、最終的に子供自身にどう思うかを考えてもらうためのAIです。
+ユーザー（子供）の質問に対して、4人の異なる性格のキャラクターがそれぞれの視点で意見を出し合い、最終的に子供自身にどう思うかを考えてもらうためのAIです。
 
 # キャラクター（ペルソナ）設定
 1. **こども（ひらめき・楽しさ担当）**：
@@ -32,19 +34,22 @@ const getSystemPrompt = (childFullName) => `
    - 性格：科学知識が豊富。冷静で真面目。「データによると〜〜」「仕組みは〜〜」という視点で話す。
 3. **おばあちゃん（慎重・別の視点担当）**：
    - 性格：おっとりしていて慎重。見落としがちなリスクや、別の優しい視点に気づかせてくれる。「〜〜かもしれないよぉ」と話す。
+4. **お姉さん（共感・気持ち・整理担当）**：
+   - 性格：優しくて親身。「なるほどね！」「〜〜な気持ちも分かるな〜」と共感し、みんなの意見を優しくまとめる補助をする。
 
 # 応答のルール
-- 子供が理解しやすい、優しく簡単な言葉（小学校低学年向け）を使ってください。漢字には難しすぎるものを避け、平仮名も適度に使用してください。
+- 子供が理解しやすい、優しく簡単な言葉（小学校低学年向け）を使ってください。
 - 答えをすぐに教えるのではなく、それぞれの意見を出すだけにとどめてください。
-- 音声で読み上げられたときに誰のセリフか分かりやすいよう、以下のような【劇のセリフ形式】で出力してください。長文は避け、テンポよく掛け合いをさせてください。
-- 案内役は三人のうちいずれかが行ってもよいし、案内役として発言してもよい。
-- 最後に必ず、案内役（またはキャラクター）として「${childFullName}は、どう思う？」と優しく問いかけて終わってください。
+- 音声で読み上げられたときに誰のセリフか分かりやすいよう、以下のような【劇のセリフ形式】で順番に掛け合いをさせて出力してください。長文は避け、1発言あたり1〜2文程度のテンポよいセリフにしてください。
+- 案内役は4人のうちいずれかが行ってもよいし、案内役として発言してもよい。
+- 最後に必ず「${childFullName}は、どう思う？」と優しく問いかけて終わってください。
 
 # 出力フォーマットの例
 案内役「面白い質問だね！みんなはどう思う？」
 こども「ぼくは〜〜だと思うな！だって楽しそうじゃん！」
 博士「〜〜という理由もあります。」
 おばあちゃん「う〜ん、でも〜〜なこともあるかも？」
+お姉さん「なるほど！みんな色んな考えがあって素敵だね。」
 案内役「みんな違って面白いね。${childFullName}は、どう思う？」
 `;
 
@@ -75,16 +80,13 @@ const elements = {
 
 // Initialize Application
 function init() {
-  // Load saved settings into UI
   elements.apiKeyInput.value = STATE.apiKey;
-  elements.selectModel.value = STATE.model;
   elements.checkAutoSpeech.checked = STATE.autoSpeech;
   elements.inputChildName.value = STATE.childName;
   elements.selectHonorific.value = STATE.honorific;
 
   renderSavedThoughts();
 
-  // Event Listeners
   elements.btnSettings.addEventListener('click', () => toggleModal(true));
   elements.btnCloseModal.addEventListener('click', () => toggleModal(false));
   elements.btnSaveSettings.addEventListener('click', saveSettings);
@@ -92,7 +94,6 @@ function init() {
   elements.inputChildName.addEventListener('change', updateChildProfile);
   elements.selectHonorific.addEventListener('change', updateChildProfile);
 
-  // Suggestion Tag Buttons
   document.querySelectorAll('.tag-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       elements.questionInput.value = btn.dataset.question;
@@ -104,7 +105,6 @@ function init() {
   elements.btnReadAll.addEventListener('click', readAllDialogue);
   elements.btnSaveThought.addEventListener('click', handleSaveThought);
 
-  // Prompt API Key modal if not configured
   if (!STATE.apiKey) {
     setTimeout(() => {
       toggleModal(true);
@@ -129,11 +129,9 @@ function toggleModal(show) {
 
 function saveSettings() {
   STATE.apiKey = elements.apiKeyInput.value.trim();
-  STATE.model = elements.selectModel.value;
   STATE.autoSpeech = elements.checkAutoSpeech.checked;
 
   localStorage.setItem('gemini_api_key', STATE.apiKey);
-  localStorage.setItem('gemini_model', STATE.model);
   localStorage.setItem('auto_speech', STATE.autoSpeech);
 
   toggleModal(false);
@@ -142,6 +140,8 @@ function saveSettings() {
 
 // Ask Gemini Question
 async function handleAskQuestion() {
+  if (STATE.isDisplayingDialogue) return;
+
   const question = elements.questionInput.value.trim();
   if (!question) {
     alert('しつもんを入力してね！');
@@ -154,7 +154,11 @@ async function handleAskQuestion() {
     return;
   }
 
-  // Hide dialogue & Show loader
+  // Stop any active speech
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+
   elements.dialogueSection.classList.add('hidden');
   elements.thoughtSection.classList.add('hidden');
   elements.loadingState.classList.remove('hidden');
@@ -165,7 +169,7 @@ async function handleAskQuestion() {
     const genAI = new GoogleGenerativeAI(STATE.apiKey);
     const targetModel = 'gemini-3.1-flash-lite';
     
-    console.log(`Using fixed Gemini model: ${targetModel}`);
+    console.log(`Requesting Gemini model: ${targetModel}`);
     const model = genAI.getGenerativeModel({
       model: targetModel,
       systemInstruction: getSystemPrompt(childFullName)
@@ -181,11 +185,9 @@ async function handleAskQuestion() {
     const parsedDialogue = parseDialogue(responseText);
     STATE.currentDialogue = parsedDialogue;
 
-    renderDialogue(parsedDialogue, childFullName);
+    // Render dialogue with sequential live conversation effect
+    await renderDialogueSequential(parsedDialogue, childFullName);
 
-    if (STATE.autoSpeech) {
-      readAllDialogue();
-    }
   } catch (error) {
     console.error('Error fetching Gemini response:', error);
     alert(`エラーが発生しました:\n${error.message || error}\n\n※ APIキーが正しいかご確認ください。`);
@@ -199,17 +201,15 @@ function parseDialogue(rawText) {
   const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
   const dialogue = [];
 
-  // Regex matches line like: 案内役「〜〜」 or こども「〜〜」 or 博士: 〜〜
-  const regex = /^(こども|博士|おばあちゃん|案内役)[「:：](.*)[」]?$/;
+  const regex = /^(こども|博士|おばあちゃん|お姉さん|案内役)[「:：](.*)[」]?$/;
 
   lines.forEach(line => {
     const match = line.match(regex);
     if (match) {
       let speaker = match[1];
-      let text = match[2].replace(/[」]$/, ''); // strip trailing quote if matched
+      let text = match[2].replace(/[」]$/, '');
       dialogue.push({ speaker, text });
     } else {
-      // Fallback if no explicit speaker prefix
       dialogue.push({ speaker: '案内役', text: line });
     }
   });
@@ -217,32 +217,45 @@ function parseDialogue(rawText) {
   return dialogue;
 }
 
-// Render Dialogue to UI
-function renderDialogue(dialogue, childFullName) {
+// Render Dialogue Sequentially like a real live play
+async function renderDialogueSequential(dialogue, childFullName) {
+  STATE.isDisplayingDialogue = true;
   elements.dialogueList.innerHTML = '';
+  elements.dialogueSection.classList.remove('hidden');
+  elements.dialogueSection.scrollIntoView({ behavior: 'smooth' });
 
-  dialogue.forEach((item, index) => {
+  for (let i = 0; i < dialogue.length; i++) {
+    const item = dialogue[i];
     const config = CHARACTERS[item.speaker] || CHARACTERS['案内役'];
 
     const itemEl = document.createElement('div');
     itemEl.className = `speech-bubble-item ${config.class}`;
-    itemEl.style.animationDelay = `${index * 0.15}s`;
-
     itemEl.innerHTML = `
       <div class="speech-avatar">${config.emoji}</div>
       <div class="speech-content">
         <div class="speech-speaker">${item.speaker}</div>
         <div class="speech-text">${escapeHtml(item.text)}</div>
         <div class="speech-action">
-          <button class="btn-speak-single" data-index="${index}">🔊 きく</button>
+          <button class="btn-speak-single" data-index="${i}">🔊 きく</button>
         </div>
       </div>
     `;
 
     elements.dialogueList.appendChild(itemEl);
-  });
 
-  // Attach individual speech listeners
+    // Scroll to the latest speaking character
+    itemEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    // Speak automatically if enabled
+    if (STATE.autoSpeech && 'speechSynthesis' in window) {
+      await speakUtteranceAsync(item);
+    } else {
+      // Small pause between text bubbles if auto speech is off
+      await new Promise(resolve => setTimeout(resolve, 1200));
+    }
+  }
+
+  // Attach individual button click handlers
   document.querySelectorAll('.btn-speak-single').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const idx = e.target.dataset.index;
@@ -250,24 +263,53 @@ function renderDialogue(dialogue, childFullName) {
     });
   });
 
-  // Show dialogue section and thought notebook
-  elements.dialogueSection.classList.remove('hidden');
+  // Reveal thought notebook after conversation finishes
   elements.thoughtSection.classList.remove('hidden');
   elements.thoughtPromptName.textContent = childFullName;
   elements.inputMyOpinion.value = '';
+  elements.thoughtSection.scrollIntoView({ behavior: 'smooth' });
 
-  // Scroll smooth to dialogue
-  elements.dialogueSection.scrollIntoView({ behavior: 'smooth' });
+  STATE.isDisplayingDialogue = false;
 }
 
-// Speech Synthesis API
+// Async speech helper to wait until utterance ends before showing next speaker
+function speakUtteranceAsync(dialogueItem) {
+  return new Promise((resolve) => {
+    if (!('speechSynthesis' in window)) {
+      resolve();
+      return;
+    }
+
+    const config = CHARACTERS[dialogueItem.speaker] || CHARACTERS['案内役'];
+    const textToSpeak = `${dialogueItem.speaker}。${dialogueItem.text}`;
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+
+    utterance.lang = 'ja-JP';
+    utterance.pitch = config.pitch;
+    utterance.rate = config.rate;
+
+    utterance.onend = () => resolve();
+    utterance.onerror = () => resolve();
+
+    // Fallback safety timeout in case speech synth gets stuck
+    const safetyTimeout = setTimeout(() => resolve(), 8000);
+
+    utterance.onend = () => {
+      clearTimeout(safetyTimeout);
+      resolve();
+    };
+
+    window.speechSynthesis.speak(utterance);
+  });
+}
+
 function speakSingle(dialogueItem) {
   if (!('speechSynthesis' in window)) {
     alert('お使いのブラウザは音声読み上げに対応していません。');
     return;
   }
 
-  window.speechSynthesis.cancel(); // Stop ongoing speech
+  window.speechSynthesis.cancel();
 
   const config = CHARACTERS[dialogueItem.speaker] || CHARACTERS['案内役'];
   const utterance = new SpeechSynthesisUtterance(dialogueItem.text);
@@ -318,7 +360,6 @@ function handleSaveThought() {
 
   renderSavedThoughts();
 
-  // Celebration Confetti!
   confetti({
     particleCount: 100,
     spread: 70,
@@ -355,5 +396,4 @@ function escapeHtml(str) {
   });
 }
 
-// Run app init on DOM Content Loaded
 document.addEventListener('DOMContentLoaded', init);
