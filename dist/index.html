@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3人のアイディアひろば ✨ - みんなならどう考える？</title>
+  <meta name="description" content="3人の異なる視点のキャラクターと一緒に考えて、自分の意見を発見する子供向けAI対話アプリ">
+  <!-- Google Fonts for Friendly Japanese Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@400;500;700&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="./assets/index-DHhlosdu.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-BNxYQVew.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-content">
+        <h1 class="app-title">
+          <span class="title-icon">🌟</span>
+          <span class="title-text">3人のアイディアひろば</span>
+          <span class="subtitle">〜みんななら どう考える？〜</span>
+        </h1>
+        <div class="header-actions">
+          <button id="btn-settings" class="btn-icon" title="設定 (APIキーなど)">
+            ⚙️ <span class="btn-label">せってい</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-container">
+
+      <!-- Character Parade Banner -->
+      <section class="character-banner">
+        <div class="character-card char-kodomo">
+          <div class="char-avatar">👦</div>
+          <div class="char-info">
+            <span class="char-name">こども</span>
+            <span class="char-role">ひらめき・たのしさ</span>
+          </div>
+        </div>
+        <div class="character-card char-hakase">
+          <div class="char-avatar">🔬</div>
+          <div class="char-info">
+            <span class="char-name">博士（はかせ）</span>
+            <span class="char-role">し組み・りろん</span>
+          </div>
+        </div>
+        <div class="character-card char-obachan">
+          <div class="char-avatar">👵</div>
+          <div class="char-info">
+            <span class="char-name">おばあちゃん</span>
+            <span class="char-role">しんちょう・やさしさ</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- User Profile / Name setup -->
+      <section class="user-profile-section">
+        <div class="profile-box">
+          <label for="input-child-name" class="profile-label">👤 あなたの なまえ：</label>
+          <input type="text" id="input-child-name" placeholder="例: たろう" value="きみ" maxlength="10">
+          <select id="select-honorific" class="honorific-select">
+            <option value="ちゃん">ちゃん</option>
+            <option value="くん" selected>くん</option>
+            <option value="さん">さん</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- Question Input Section -->
+      <section class="question-section">
+        <div class="card question-card">
+          <h2><span class="icon">❓</span> なにについて かんがえてみる？</h2>
+          <div class="input-group">
+            <textarea id="question-input" placeholder="ききたいことや、ふしぎに思うことを入力してね！（例: 空はどうして青いの？）" rows="3"></textarea>
+            <button id="btn-ask" class="btn-primary">
+              <span class="btn-text">3人にきいてみる！</span>
+              <span class="btn-emoji">🚀</span>
+            </button>
+          </div>
+
+          <!-- Suggested Questions -->
+          <div class="suggestions-container">
+            <span class="suggestions-title">💡 たとえば こんな しつもん：</span>
+            <div class="suggestion-tags">
+              <button class="tag-btn" data-question="どうして空は青いの？">🌤️ 空はどうして青いの？</button>
+              <button class="tag-btn" data-question="どうしてお腹が空くの？">🍙 どうしてお腹が空くの？</button>
+              <button class="tag-btn" data-question="ロボットとお友達になれるかな？">🤖 ロボットとお友達になれる？</button>
+              <button class="tag-btn" data-question="ゲームは1日何時間までがいい？">🎮 ゲームは1日何時間まで？</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Loading State -->
+      <div id="loading-state" class="loading-container hidden">
+        <div class="spinner"></div>
+        <p class="loading-text">3人が いっしょうけんめい かんがえているよ... 💭</p>
+      </div>
+
+      <!-- Dialogue Output Section -->
+      <section id="dialogue-section" class="dialogue-section hidden">
+        <div class="dialogue-header">
+          <h2><span class="icon">💬</span> 3人の話し合い</h2>
+          <button id="btn-read-all" class="btn-secondary">
+            🔊 ぜんぶ 読みあげる
+          </button>
+        </div>
+
+        <div id="dialogue-list" class="dialogue-list">
+          <!-- Dynamically generated dialogue bubbles will go here -->
+        </div>
+
+        <!-- Child's Thought Notebook Section -->
+        <div id="thought-section" class="thought-card card hidden">
+          <div class="thought-header">
+            <h3><span class="icon">✏️</span> <span id="thought-prompt-name">きみ</span>は どう思う？</h3>
+            <p class="thought-subtitle">3人の意見を聞いて、自分で考えたことを書いてみよう！</p>
+          </div>
+          <textarea id="input-my-opinion" placeholder="ぼく・わたしは、こう思うよ！..." rows="3"></textarea>
+          <div class="thought-actions">
+            <button id="btn-save-thought" class="btn-success">
+              ✨ じぶんのノートにほぞんする
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Saved Thoughts Log Section -->
+      <section id="saved-thoughts-section" class="saved-thoughts-section hidden">
+        <h2><span class="icon">📖</span> じぶんのアイディアノート</h2>
+        <div id="saved-thoughts-list" class="saved-thoughts-list">
+          <!-- Saved items will go here -->
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>⚙️ せってい</h3>
+          <button id="btn-close-modal" class="btn-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="api-key-input">🔑 Gemini APIキー</label>
+            <p class="form-help">Google AI Studioで取得したAPIキーを入力してください。<br><small>(キーはお使いのブラウザ内のみに保存されます)</small></p>
+            <input type="password" id="api-key-input" placeholder="AIzaSy..." autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="select-model">🤖 使用モデル</label>
+            <select id="select-model" class="model-select">
+              <option value="gemini-1.5-flash" selected>Gemini 1.5 Flash (おすすめ・高速)</option>
+              <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (最新実験版)</option>
+              <option value="gemini-1.5-pro">Gemini 1.5 Pro (高精度)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="check-auto-speech">🔊 自動で声を読み上げる</label>
+            <input type="checkbox" id="check-auto-speech" checked>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-save-settings" class="btn-primary">保存する</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>3人のアイディアひろば &copy; 2026 - Powered by Gemini API & GitHub Pages</p>
+    </footer>
+  </div>
+
+</body>
+</html>
