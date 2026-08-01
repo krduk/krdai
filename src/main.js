@@ -1,4 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import daigorouImg from '../public/avatars/daigorou.jpg';
+import chiikidoImg from '../public/avatars/chiikido.jpg';
+import tokibaaImg from '../public/avatars/tokibaa.jpg';
+import motoyamaImg from '../public/avatars/motoyama.jpg';
 
 // State Management
 const STATE = {
@@ -13,10 +17,10 @@ const STATE = {
 
 // Character Config (Face close-ups via CSS zoom-face)
 const CHARACTERS = {
-  'だいごろう': { image: './avatars/daigorou.jpg', class: 'speech-daigorou', pitch: 1.4, rate: 1.1 },
-  'チイキド博士': { image: './avatars/chiikido.jpg', class: 'speech-chiikido', pitch: 0.9, rate: 1.0 },
-  'トキばあ': { image: './avatars/tokibaa.jpg', class: 'speech-tokibaa', pitch: 0.8, rate: 0.85 },
-  '本山さん': { image: './avatars/motoyama.jpg', class: 'speech-motoyama', pitch: 1.25, rate: 1.05 }
+  'だいごろう': { image: daigorouImg, class: 'speech-daigorou', pitch: 1.4, rate: 1.1 },
+  'チイキド博士': { image: chiikidoImg, class: 'speech-chiikido', pitch: 0.9, rate: 1.0 },
+  'トキばあ': { image: tokibaaImg, class: 'speech-tokibaa', pitch: 0.8, rate: 0.85 },
+  '本山さん': { image: motoyamaImg, class: 'speech-motoyama', pitch: 1.25, rate: 1.05 }
 };
 
 const CHARACTER_NAMES = ['だいごろう', 'チイキド博士', 'トキばあ', '本山さん'];
