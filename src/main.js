@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { SUGGESTED_PROMPTS } from './prompts.js';
 import daigorouImg from '../public/avatars/daigorou.jpg';
 import chiikidoImg from '../public/avatars/chiikido.jpg';
 import tokibaaImg from '../public/avatars/tokibaa.jpg';
@@ -101,6 +102,7 @@ const elements = {
   dialogueList: document.getElementById('dialogue-list'),
   btnReadAll: document.getElementById('btn-read-all'),
   suggestionsArea: document.getElementById('suggestions-area'),
+  suggestionTags: document.getElementById('suggestion-tags'),
   consoleTitle: document.getElementById('console-title')
 };
 
@@ -177,6 +179,27 @@ function stopListening() {
   elements.voiceStatus.classList.add('hidden');
 }
 
+// Render 4 Random Prompts from 500 Suggested Prompts Pool
+function renderRandomSuggestions() {
+  if (!elements.suggestionTags) return;
+
+  const shuffled = shuffleArray(SUGGESTED_PROMPTS);
+  const selectedFour = shuffled.slice(0, 4);
+
+  elements.suggestionTags.innerHTML = '';
+  selectedFour.forEach(item => {
+    const btn = document.createElement('button');
+    btn.className = 'tag-btn scifi-tag';
+    btn.dataset.question = item.text;
+    btn.textContent = `${item.emoji} ${item.text}`;
+    btn.addEventListener('click', () => {
+      elements.questionInput.value = item.text;
+      handleAskQuestion();
+    });
+    elements.suggestionTags.appendChild(btn);
+  });
+}
+
 // Initialize Application
 function init() {
   elements.apiKeyInput.value = STATE.apiKey;
@@ -188,6 +211,7 @@ function init() {
   elements.selectHonorific.value = STATE.honorific;
 
   initSpeechRecognition();
+  renderRandomSuggestions();
 
   elements.btnSettings.addEventListener('click', () => toggleModal(true));
   elements.btnCloseModal.addEventListener('click', () => toggleModal(false));
@@ -196,13 +220,6 @@ function init() {
 
   elements.inputChildName.addEventListener('change', updateChildProfile);
   elements.selectHonorific.addEventListener('change', updateChildProfile);
-
-  document.querySelectorAll('.tag-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      elements.questionInput.value = btn.dataset.question;
-      handleAskQuestion();
-    });
-  });
 
   // Enable sending with Enter key inside text input
   elements.questionInput.addEventListener('keydown', (e) => {
@@ -263,6 +280,7 @@ function resetChatSession() {
   if (elements.dialogueList) elements.dialogueList.innerHTML = '';
   if (elements.dialogueSection) elements.dialogueSection.classList.add('hidden');
   if (elements.suggestionsArea) elements.suggestionsArea.classList.remove('hidden');
+  renderRandomSuggestions();
   if (elements.consoleTitle) elements.consoleTitle.innerHTML = `<span class="cyber-icon">🚀</span> 4人に話しかける`;
   if (elements.questionInput) elements.questionInput.value = '';
 
