@@ -79,6 +79,10 @@ const elements = {
   selectHonorific: document.getElementById('select-honorific'),
   questionInput: document.getElementById('question-input'),
   btnAsk: document.getElementById('btn-ask'),
+  btnMic: document.getElementById('btn-mic'),
+  micText: document.getElementById('mic-text'),
+  voiceStatus: document.getElementById('voice-status'),
+  voiceStatusText: document.getElementById('voice-status-text'),
   loadingState: document.getElementById('loading-state'),
   dialogueSection: document.getElementById('dialogue-section'),
   dialogueList: document.getElementById('dialogue-list'),
@@ -91,6 +95,85 @@ const elements = {
   savedThoughtsList: document.getElementById('saved-thoughts-list')
 };
 
+// Speech Recognition Instance
+let recognition = null;
+let isListening = false;
+
+function initSpeechRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition) {
+    elements.btnMic.style.display = 'none';
+    console.warn('SpeechRecognition API is not supported in this browser.');
+    return;
+  }
+
+  recognition = new SpeechRecognition();
+  recognition.lang = 'ja-JP';
+  recognition.continuous = false;
+  recognition.interimResults = true;
+
+  recognition.onstart = () => {
+    isListening = true;
+    elements.btnMic.classList.add('listening');
+    elements.micText.textContent = '聞いています...（もう一度おすと止まる）';
+    elements.voiceStatus.classList.remove('hidden');
+    elements.voiceStatusText.textContent = 'おはなしを聞いているよ... 👂';
+  };
+
+  recognition.onresult = (event) => {
+    let transcript = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      transcript += event.results[i][0].transcript;
+    }
+    elements.questionInput.value = transcript;
+  };
+
+  recognition.onerror = (event) => {
+    console.error('Speech recognition error:', event.error);
+    stopListening();
+    if (event.error === 'not-allowed') {
+      alert('マイクの使用が許可されていません。ブラウザの設定でマイクを許可してください。');
+    }
+  };
+
+  recognition.onend = () => {
+    stopListening();
+    // Auto submit if text was transcribed
+    const text = elements.questionInput.value.trim();
+    if (text && !STATE.isDisplayingDialogue) {
+      setTimeout(() => {
+        handleAskQuestion();
+      }, 500);
+    }
+  };
+
+  elements.btnMic.addEventListener('click', toggleListening);
+}
+
+function toggleListening() {
+  if (isListening) {
+    recognition.stop();
+  } else {
+    // Cancel any TTS reading when user starts speaking
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    try {
+      recognition.start();
+    } catch (e) {
+      console.warn('Recognition start error:', e);
+    }
+  }
+}
+
+function stopListening() {
+  isListening = false;
+  elements.btnMic.classList.remove('listening');
+  elements.micText.textContent = 'こえで はなしかける（おす）';
+  elements.voiceStatus.classList.add('hidden');
+}
+
 // Initialize Application
 function init() {
   elements.apiKeyInput.value = STATE.apiKey;
@@ -99,6 +182,7 @@ function init() {
   elements.selectHonorific.value = STATE.honorific;
 
   renderSavedThoughts();
+  initSpeechRecognition();
 
   elements.btnSettings.addEventListener('click', () => toggleModal(true));
   elements.btnCloseModal.addEventListener('click', () => toggleModal(false));

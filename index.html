@@ -86,8 +86,20 @@
       <section class="question-section">
         <div class="card question-card warm-card">
           <h2><span class="icon">❓</span> なにについて かんがえてみる？</h2>
+
+          <!-- Primary Voice Input Area -->
+          <div class="voice-input-container">
+            <button id="btn-mic" class="btn-mic-primary">
+              <span class="mic-icon">🎙️</span>
+              <span id="mic-text" class="mic-text">こえで はなしかける（おす）</span>
+            </button>
+            <div id="voice-status" class="voice-status hidden">
+              <span class="pulse-dot"></span> <span id="voice-status-text">おはなしを聞いているよ... 👂</span>
+            </div>
+          </div>
+
           <div class="input-group">
-            <textarea id="question-input" placeholder="聞きたいことや、ふしぎに思うことを書いてね！（例: 空はどうして青いの？）" rows="3"></textarea>
+            <textarea id="question-input" placeholder="ここにも 文字で書けるよ！（例: 空はどうして青いの？）" rows="2"></textarea>
             <button id="btn-ask" class="btn-primary-warm">
               <span class="btn-text">4人にきいてみる！</span>
               <span class="btn-emoji">✨</span>
