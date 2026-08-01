@@ -243,11 +243,11 @@ function resetChatSession() {
   }
 
   STATE.chatHistory = [];
-  elements.dialogueList.innerHTML = '';
-  elements.dialogueSection.classList.add('hidden');
-  elements.suggestionsArea.classList.remove('hidden');
-  elements.consoleTitle.innerHTML = `<span class="cyber-icon">🚀</span> 4人に話しかける`;
-  elements.questionInput.value = '';
+  if (elements.dialogueList) elements.dialogueList.innerHTML = '';
+  if (elements.dialogueSection) elements.dialogueSection.classList.add('hidden');
+  if (elements.suggestionsArea) elements.suggestionsArea.classList.remove('hidden');
+  if (elements.consoleTitle) elements.consoleTitle.innerHTML = `<span class="cyber-icon">🚀</span> 4人に話しかける`;
+  if (elements.questionInput) elements.questionInput.value = '';
 
   alert('会話を新しくリセットしました！✨');
 }
@@ -316,8 +316,10 @@ async function handleAskQuestion() {
 
     const parsedDialogue = parseDialogue(responseText);
 
-    // Update console title to encourage continuing conversation
-    elements.consoleTitle.innerHTML = `<span class="cyber-icon">💬</span> 4人へのへんじ・つづきを話す`;
+    // Update console title to encourage continuing conversation if present
+    if (elements.consoleTitle) {
+      elements.consoleTitle.innerHTML = `<span class="cyber-icon">💬</span> 4人へのへんじ・つづきを話す`;
+    }
 
     // Render dialogue with typing effect and voice
     await renderDialogueSequential(parsedDialogue);
