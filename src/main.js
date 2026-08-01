@@ -54,6 +54,10 @@ const getSystemPrompt = (childFullName) => {
 3. **トキばあ**：おっとりしたおばあちゃん。「〜〜かもしれないよぉ」という優しく慎重な視点。
 4. **本山さん**：しっかりもののお姉さん。「なるほどね！〜〜な気持ちもわかるな」という共感・まとめ視点。
 
+# 算数・理科・社会の特別ルール（画像解説提案）
+- 小学生の【算数・理科・社会】に関する質問や疑問が含まれる場合、チイキド博士は必ず発言の中で**「わしが絵（図解）を描いて詳しく説明しようか？」**や**「図を描いて詳しく説明しようか？」**のようにユーザーに問いかけて提案してください。
+- ユーザーがそれに対して「はい」「お願い」「詳しく教えて」「みせて」などと答えた場合、チイキド博士は**「よし！図を描いて説明するぞ！」**と答えてください。その際、チイキド博士の発言の最後に【IMAGE: 英語での画像生成プロンプト】（例: 【IMAGE: An educational vector illustration showing how photosynthesis works for elementary school science, clean diagram】）というタグを含めてください。
+
 # 応答の重要ルール（継続対話）
 - ユーザー（${childFullName}）の発言内容やこれまでの会話の流れを受けて、**4人で会話を繋げて自然に返答**してください。
 - 今回の進行役は必ず【${facilitator}】が行ってください。【${facilitator}】が会話を受け止め、またはまとめ、**最後に必ず「${childFullName}は、どう思う？」や「〜〜はどうかな？」など次のお返事を促す問いかけ**をして終わってください。
@@ -350,22 +354,54 @@ function renderUserMessage(text, childFullName) {
   itemEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
+// Helper to generate image using gemini-3.1-flash-lite-image model
+async function generateExplanationImage(promptText) {
+  try {
+    const genAI = new GoogleGenerativeAI(STATE.apiKey);
+    const imageModel = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-image' });
+    const result = await imageModel.generateContent({
+      contents: [{ role: 'user', parts: [{ text: promptText }] }]
+    });
+
+    const response = result.response;
+    const candidates = response.candidates;
+    if (candidates && candidates[0] && candidates[0].content && candidates[0].content.parts) {
+      for (const part of candidates[0].content.parts) {
+        if (part.inlineData) {
+          return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Image generation error with gemini-3.1-flash-lite-image:', err);
+  }
+  return null;
+}
+
 // Parse Gemini line-by-line script response
 function parseDialogue(rawText) {
   const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
   const dialogue = [];
 
   const regex = /^(だいごろう|チイキド博士|トキばあ|本山さん)[「:：](.*)[」]?$/;
+  const imageTagRegex = /【IMAGE:\s*(.*?)】/i;
 
   lines.forEach(line => {
+    let imagePrompt = null;
+    const imgMatch = line.match(imageTagRegex);
+    if (imgMatch) {
+      imagePrompt = imgMatch[1];
+      line = line.replace(imageTagRegex, '').trim();
+    }
+
     const match = line.match(regex);
     if (match) {
       let speaker = match[1];
       let text = match[2].replace(/[」]$/, '');
-      dialogue.push({ speaker, text });
+      dialogue.push({ speaker, text, imagePrompt });
     } else {
       const fallbackSpeaker = CHARACTER_NAMES[Math.floor(Math.random() * CHARACTER_NAMES.length)];
-      dialogue.push({ speaker: fallbackSpeaker, text: line.replace(/^[案内役|進行役][「:：]/, '').replace(/[」]$/, '') });
+      dialogue.push({ speaker: fallbackSpeaker, text: line.replace(/^[案内役|進行役][「:：]/, '').replace(/[」]$/, ''), imagePrompt });
     }
   });
 
@@ -387,6 +423,7 @@ async function renderDialogueSequential(dialogue) {
       <div class="speech-content">
         <div class="speech-speaker">${item.speaker}</div>
         <div class="speech-text"><span class="typed-text"></span><span class="typing-cursor"></span></div>
+        <div class="speech-image-container hidden"></div>
         <div class="speech-action">
           <button class="btn-speak-single" data-speaker="${item.speaker}" data-text="${escapeHtml(item.text)}">🔊 きく</button>
         </div>
@@ -413,6 +450,24 @@ async function renderDialogueSequential(dialogue) {
 
     if (cursorSpan) {
       cursorSpan.style.display = 'none';
+    }
+
+    // If Chiikido Doctor triggered image generation
+    if (item.imagePrompt) {
+      const imgContainer = itemEl.querySelector('.speech-image-container');
+      if (imgContainer) {
+        imgContainer.classList.remove('hidden');
+        imgContainer.innerHTML = `<div class="image-loading-text">🎨 チイキド博士が図を描いています... 🎨</div>`;
+        scrollToBottom();
+
+        const generatedDataUrl = await generateExplanationImage(item.imagePrompt);
+        if (generatedDataUrl) {
+          imgContainer.innerHTML = `<img src="${generatedDataUrl}" alt="チイキド博士の解説図" class="generated-explanation-img">`;
+        } else {
+          imgContainer.innerHTML = `<div class="image-error-text">⚠️ 図の作成に失敗しました</div>`;
+        }
+        scrollToBottom();
+      }
     }
 
     await new Promise(r => setTimeout(r, 600));

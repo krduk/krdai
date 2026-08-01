@@ -688,6 +688,38 @@ body.scifi-theme {
   line-height: 1.6;
 }
 
+.speech-image-container {
+  margin-top: 12px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--chiikido-border);
+}
+
+.image-loading-text {
+  font-size: 0.85rem;
+  color: var(--neon-cyan);
+  padding: 10px;
+  text-align: center;
+  background: rgba(0, 240, 255, 0.05);
+  animation: blink 1s infinite alternate;
+}
+
+.image-error-text {
+  font-size: 0.85rem;
+  color: var(--neon-pink);
+  padding: 8px;
+  text-align: center;
+}
+
+.generated-explanation-img {
+  width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  display: block;
+  background: #000;
+  border-radius: var(--radius-sm);
+}
+
 /* User Message Bubble Styling */
 .speech-user {
   flex-direction: row-reverse;
