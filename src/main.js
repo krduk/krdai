@@ -55,9 +55,11 @@ const getSystemPrompt = (childFullName) => {
 3. **トキばあ**：おっとりしたおばあちゃん。「〜〜かもしれないよぉ」という優しく慎重な視点。
 4. **本山さん**：しっかりもののお姉さん。「なるほどね！〜〜な気持ちもわかるな」という共感・まとめ視点。
 
-# 算数・理科・社会の特別ルール（画像解説提案）
-- 小学生の【算数・理科・社会】に関する質問や疑問が含まれる場合、チイキド博士は必ず発言の中で**「わしが絵（図解）を描いて詳しく説明しようか？」**や**「図を描いて詳しく説明しようか？」**のようにユーザーに問いかけて提案してください。
-- ユーザーがそれに対して「はい」「お願い」「詳しく教えて」「みせて」などと答えた場合、チイキド博士は**「よし！図を描いて説明するぞ！」**と答えてください。その際、チイキド博士の発言の最後に【IMAGE: 英語での画像生成プロンプト】（例: 【IMAGE: An educational vector illustration showing how photosynthesis works for elementary school science, clean diagram】）というタグを含めてください。
+# 算数・理科・社会の特別ルール（画像解説提案・必ずチイキド博士が図示する）
+- 小学生の【算数・理科・社会】に関する質問や疑問が含まれる場合、必ず【チイキド博士】が発言の中で**「わしが絵（図解）を描いて詳しく説明しようか？」**や**「図を描いて詳しく説明しようか？」**のようにユーザーに問いかけて提案してください。
+- ユーザーがそれに対して「はい」「お願い」「詳しく教えて」「みせて」などと答えた場合、必ず【チイキド博士】が**「よし！図を描いて詳しく説明するぞ！」**と答えてください。
+- **重要（画像の提示は必ずチイキド博士が行う）**: 画像生成タグ【IMAGE: ...】を付けることができるのは**【チイキド博士】の発言のみ**です。他のキャラクター（だいごろう、トキばあ、本山さん）に【IMAGE: ...】タグを付けることは厳禁です。
+- **重要（図内のテキスト・説明は日本語にする）**: 【IMAGE: ...】のプロンプト内には「Draw an educational diagram for Japanese elementary school students. All text, labels, and explanations inside the image MUST be written in JAPANESE (日本語).」という指示を含め、日本語表記の分かりやすい図解をリクエストしてください。
 
 # 応答の重要ルール（継続対話）
 - ユーザー（${childFullName}）の発言内容やこれまでの会話の流れを受けて、**4人で会話を繋げて自然に返答**してください。
@@ -400,7 +402,8 @@ function parseDialogue(rawText) {
     let imagePrompt = null;
     const imgMatch = line.match(imageTagRegex);
     if (imgMatch) {
-      imagePrompt = imgMatch[1];
+      // Prompt enhancement for Japanese text inside generated image
+      imagePrompt = `${imgMatch[1]}. Educational diagram for Japanese elementary school students with JAPANESE text labels and annotations (日本語表記).`;
       line = line.replace(imageTagRegex, '').trim();
     }
 
@@ -408,10 +411,13 @@ function parseDialogue(rawText) {
     if (match) {
       let speaker = match[1];
       let text = match[2].replace(/[」]$/, '');
-      dialogue.push({ speaker, text, imagePrompt });
+      // Ensure ONLY Chiikido Doctor gets the image attached
+      const finalImagePrompt = (speaker === 'チイキド博士') ? imagePrompt : null;
+      dialogue.push({ speaker, text, imagePrompt: finalImagePrompt });
     } else {
       const fallbackSpeaker = CHARACTER_NAMES[Math.floor(Math.random() * CHARACTER_NAMES.length)];
-      dialogue.push({ speaker: fallbackSpeaker, text: line.replace(/^[案内役|進行役][「:：]/, '').replace(/[」]$/, ''), imagePrompt });
+      const finalImagePrompt = (fallbackSpeaker === 'チイキド博士') ? imagePrompt : null;
+      dialogue.push({ speaker: fallbackSpeaker, text: line.replace(/^[案内役|進行役][「:：]/, '').replace(/[」]$/, ''), imagePrompt: finalImagePrompt });
     }
   });
 
