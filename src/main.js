@@ -219,7 +219,7 @@ function parseDialogue(rawText) {
   return dialogue;
 }
 
-// Sequential Live Play with Character-by-Character Typing Effect
+// Sequential Live Play with Synchronized Typing & Speech Synthesis
 async function renderDialogueSequential(dialogue, childFullName) {
   STATE.isDisplayingDialogue = true;
   elements.dialogueList.innerHTML = '';
@@ -249,23 +249,34 @@ async function renderDialogueSequential(dialogue, childFullName) {
     const textSpan = itemEl.querySelector('.typed-text');
     const cursorSpan = itemEl.querySelector('.typing-cursor');
 
-    // Start speech in parallel with typing animation if enabled
-    let speechPromise = Promise.resolve();
     if (STATE.autoSpeech && 'speechSynthesis' in window) {
-      speechPromise = speakUtteranceAsync(item);
+      // Speak first / synchronously with typing
+      // Calculate speed based on sentence length so typing completes cleanly during speech
+      const estimatedDurationMs = Math.max(item.text.length * 150, 1500);
+      const typingCharSpeed = Math.floor(estimatedDurationMs / item.text.length);
+
+      // Start typing animation concurrently with voice
+      const typingPromise = typeTextAsync(textSpan, item.text, Math.min(typingCharSpeed, 60));
+      
+      // STRICTLY AWAIT speech utterance completion
+      await speakUtteranceAsync(item);
+      
+      // Ensure typing animation has finished if speech was very fast
+      await typingPromise;
+
+    } else {
+      // If voice is turned off, simply type out at steady speed and pause
+      await typeTextAsync(textSpan, item.text, 40);
+      await new Promise(r => setTimeout(r, 800));
     }
 
-    // Type characters one by one
-    await typeTextAsync(textSpan, item.text, 35);
-    
-    // Remove typing cursor after finished
+    // Hide cursor after line is fully spoken and typed
     if (cursorSpan) {
       cursorSpan.style.display = 'none';
     }
 
-    // Wait for speech synthesis to complete if autoSpeech is on
-    await speechPromise;
-    await new Promise(r => setTimeout(r, 400));
+    // Short natural pause between speakers
+    await new Promise(r => setTimeout(r, 600));
   }
 
   // Attach individual click handlers for re-playing speech
@@ -286,7 +297,7 @@ async function renderDialogueSequential(dialogue, childFullName) {
 }
 
 // Type text character by character (Typewriter Effect)
-function typeTextAsync(element, text, speedMs = 35) {
+function typeTextAsync(element, text, speedMs = 40) {
   return new Promise((resolve) => {
     let index = 0;
     element.textContent = '';
@@ -302,13 +313,16 @@ function typeTextAsync(element, text, speedMs = 35) {
   });
 }
 
-// Async speech synthesis helper
+// Async speech synthesis helper - Waits until audio actually finishes speaking
 function speakUtteranceAsync(dialogueItem) {
   return new Promise((resolve) => {
     if (!('speechSynthesis' in window)) {
       resolve();
       return;
     }
+
+    // Cancel previous audio if any
+    window.speechSynthesis.cancel();
 
     const config = CHARACTERS[dialogueItem.speaker] || CHARACTERS['お姉さん'];
     const textToSpeak = `${dialogueItem.speaker}。${dialogueItem.text}`;
@@ -318,19 +332,34 @@ function speakUtteranceAsync(dialogueItem) {
     utterance.pitch = config.pitch;
     utterance.rate = config.rate;
 
-    const safetyTimeout = setTimeout(() => resolve(), 9000);
-
-    utterance.onend = () => {
-      clearTimeout(safetyTimeout);
-      resolve();
+    let hasResolved = false;
+    const finish = () => {
+      if (!hasResolved) {
+        hasResolved = true;
+        resolve();
+      }
     };
 
-    utterance.onerror = () => {
-      clearTimeout(safetyTimeout);
-      resolve();
-    };
+    utterance.onend = finish;
+    utterance.onerror = finish;
 
+    // Speak utterance
     window.speechSynthesis.speak(utterance);
+
+    // Chrome/Safari speech synthesis work-around for long pauses
+    const checkSpeechState = setInterval(() => {
+      if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
+        clearInterval(checkSpeechState);
+        finish();
+      }
+    }, 200);
+
+    // Safety timeout based on text length (e.g. max 15 seconds)
+    const maxWaitTime = Math.max(textToSpeak.length * 400, 5000);
+    setTimeout(() => {
+      clearInterval(checkSpeechState);
+      finish();
+    }, maxWaitTime);
   });
 }
 
