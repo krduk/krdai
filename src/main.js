@@ -13,15 +13,15 @@ const STATE = {
   isDisplayingDialogue: false
 };
 
-// Character Config with Generated Sci-Fi Anime Avatar Images
+// Character Config (Warm Picture-Book Style)
 const CHARACTERS = {
-  'こども': { image: './avatars/kodomo.jpg', class: 'speech-kodomo', pitch: 1.4, rate: 1.1 },
-  '博士': { image: './avatars/hakase.jpg', class: 'speech-hakase', pitch: 0.9, rate: 1.0 },
-  'おばあちゃん': { image: './avatars/obachan.jpg', class: 'speech-obachan', pitch: 0.8, rate: 0.85 },
-  'お姉さん': { image: './avatars/oneesan.jpg', class: 'speech-oneesan', pitch: 1.25, rate: 1.05 }
+  'だいごろう': { image: './avatars/daigorou.jpg', class: 'speech-daigorou', pitch: 1.4, rate: 1.1 },
+  'チイキド博士': { image: './avatars/chiikido.jpg', class: 'speech-chiikido', pitch: 0.9, rate: 1.0 },
+  'トキばあ': { image: './avatars/tokibaa.jpg', class: 'speech-tokibaa', pitch: 0.8, rate: 0.85 },
+  '本山さん': { image: './avatars/motoyama.jpg', class: 'speech-motoyama', pitch: 1.25, rate: 1.05 }
 };
 
-const CHARACTER_NAMES = ['こども', '博士', 'おばあちゃん', 'お姉さん'];
+const CHARACTER_NAMES = ['だいごろう', 'チイキド博士', 'トキばあ', '本山さん'];
 
 // Helper to shuffle array randomly
 function shuffleArray(array) {
@@ -33,31 +33,28 @@ function shuffleArray(array) {
   return arr;
 }
 
-// System Prompt Template with dynamic facilitator and random order
+// System Prompt Template with dynamic facilitator and warm non-AI persona
 const getSystemPrompt = (childFullName) => {
-  // Pick random facilitator from the 4 characters
   const facilitator = CHARACTER_NAMES[Math.floor(Math.random() * CHARACTER_NAMES.length)];
-  
-  // Pick other 3 characters and shuffle their order
   const others = shuffleArray(CHARACTER_NAMES.filter(name => name !== facilitator));
 
   return `
 # 目的
-ユーザー（子供）の質問に対して、4人の異なる性格のAIキャラクターがそれぞれの視点で意見を出し合い、最終的に子供自身にどう思うかを考えてもらうためのAIです。
+ユーザー（子供）の質問に対して、4人の親しみやすいキャラクターがそれぞれの視点で楽しく話し合い、最終的に子供自身にどう思うかを考えてもらうための対話です。
 
 # 今回の劇の演出指定（最重要）
 - **今回の進行役（案内役）**: 【${facilitator}】
-- **発言の参加順序例**: ${facilitator}（最初の挨拶） ➔ ${others[0]} ➔ ${others[1]} ➔ ${others[2]} ➔ ${facilitator}（まとめ＆問いかけ）
+- **発言の参加順序例**: ${facilitator}（最初の呼びかけ） ➔ ${others[0]} ➔ ${others[1]} ➔ ${others[2]} ➔ ${facilitator}（まとめ＆問いかけ）
 
 # キャラクター（ペルソナ）設定
-1. **こども（ひらめき・楽しさ担当）**：元気でポジティブ。「〜〜したら楽しそう！」という視点。
-2. **博士（論理・仕組み担当）**：科学知識が豊富。「〜〜という仕組みです」という視点。
-3. **おばあちゃん（慎重・別の視点担当）**：おっとり。「〜〜かもしれないよぉ」という優しいリスク視点。
-4. **お姉さん（共感・気持ち・整理担当）**：親身。「なるほどね！〜〜な気持ちもわかるな」という共感視点。
+1. **だいごろう**：元気いっぱいの男の子。「〜〜したら楽しそう！」という無邪気で楽しい視点。
+2. **チイキド博士**：物知りな優しい博士。「〜〜という仕組みなんだよ」という知識・理屈の視点。
+3. **トキばあ**：おっとりしたおばあちゃん。「〜〜かもしれないよぉ」という優しく慎重な視点。
+4. **本山さん**：しっかりもののお姉さん。「なるほどね！〜〜な気持ちもわかるな」という共感・まとめ視点。
 
 # 応答の重要ルール
+- AIやシステムといった表現・言葉は一切使わないでください。自然な人間の劇・話し合いとして出力してください。
 - **今回の進行役は必ず【${facilitator}】が行ってください。**【${facilitator}】が最初に質問を受け止め、会話の最後に必ず「${childFullName}は、どう思う？」と優しく問いかけて終わってください。
-- 会話の途中で中間の意見を言う順番もシャッフルし、掛け合いを発生させてください。
 - 子供が理解しやすい簡単な言葉（小学校低学年向け）を使い、1発言あたり1〜2文のテンポよい【劇のセリフ形式】で出力してください。
 
 # 出力フォーマットの例
@@ -216,7 +213,7 @@ function parseDialogue(rawText) {
   const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
   const dialogue = [];
 
-  const regex = /^(こども|博士|おばあちゃん|お姉さん)[「:：](.*)[」]?$/;
+  const regex = /^(だいごろう|チイキド博士|トキばあ|本山さん)[「:：](.*)[」]?$/;
 
   lines.forEach(line => {
     const match = line.match(regex);
@@ -225,7 +222,6 @@ function parseDialogue(rawText) {
       let text = match[2].replace(/[」]$/, '');
       dialogue.push({ speaker, text });
     } else {
-      // Fallback speaker if unparsed, pick random from the 4
       const fallbackSpeaker = CHARACTER_NAMES[Math.floor(Math.random() * CHARACTER_NAMES.length)];
       dialogue.push({ speaker: fallbackSpeaker, text: line.replace(/^[案内役|進行役][「:：]/, '').replace(/[」]$/, '') });
     }
@@ -243,7 +239,7 @@ async function renderDialogueSequential(dialogue, childFullName) {
 
   for (let i = 0; i < dialogue.length; i++) {
     const item = dialogue[i];
-    const config = CHARACTERS[item.speaker] || CHARACTERS['お姉さん'];
+    const config = CHARACTERS[item.speaker] || CHARACTERS['本山さん'];
 
     const itemEl = document.createElement('div');
     itemEl.className = `speech-bubble-item ${config.class}`;
@@ -265,36 +261,24 @@ async function renderDialogueSequential(dialogue, childFullName) {
     const cursorSpan = itemEl.querySelector('.typing-cursor');
 
     if (STATE.autoSpeech && 'speechSynthesis' in window) {
-      // Speak first / synchronously with typing
-      // Calculate speed based on sentence length so typing completes cleanly during speech
       const estimatedDurationMs = Math.max(item.text.length * 150, 1500);
       const typingCharSpeed = Math.floor(estimatedDurationMs / item.text.length);
 
-      // Start typing animation concurrently with voice
       const typingPromise = typeTextAsync(textSpan, item.text, Math.min(typingCharSpeed, 60));
-      
-      // STRICTLY AWAIT speech utterance completion
       await speakUtteranceAsync(item);
-      
-      // Ensure typing animation has finished if speech was very fast
       await typingPromise;
-
     } else {
-      // If voice is turned off, simply type out at steady speed and pause
       await typeTextAsync(textSpan, item.text, 40);
       await new Promise(r => setTimeout(r, 800));
     }
 
-    // Hide cursor after line is fully spoken and typed
     if (cursorSpan) {
       cursorSpan.style.display = 'none';
     }
 
-    // Short natural pause between speakers
     await new Promise(r => setTimeout(r, 600));
   }
 
-  // Attach individual click handlers for re-playing speech
   document.querySelectorAll('.btn-speak-single').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const idx = e.target.dataset.index;
@@ -302,7 +286,6 @@ async function renderDialogueSequential(dialogue, childFullName) {
     });
   });
 
-  // Reveal thought notebook after conversation finishes
   elements.thoughtSection.classList.remove('hidden');
   elements.thoughtPromptName.textContent = childFullName;
   elements.inputMyOpinion.value = '';
@@ -311,7 +294,7 @@ async function renderDialogueSequential(dialogue, childFullName) {
   STATE.isDisplayingDialogue = false;
 }
 
-// Type text character by character (Typewriter Effect)
+// Type text character by character
 function typeTextAsync(element, text, speedMs = 40) {
   return new Promise((resolve) => {
     let index = 0;
@@ -328,7 +311,7 @@ function typeTextAsync(element, text, speedMs = 40) {
   });
 }
 
-// Async speech synthesis helper - Waits until audio actually finishes speaking
+// Async speech synthesis helper
 function speakUtteranceAsync(dialogueItem) {
   return new Promise((resolve) => {
     if (!('speechSynthesis' in window)) {
@@ -336,10 +319,9 @@ function speakUtteranceAsync(dialogueItem) {
       return;
     }
 
-    // Cancel previous audio if any
     window.speechSynthesis.cancel();
 
-    const config = CHARACTERS[dialogueItem.speaker] || CHARACTERS['お姉さん'];
+    const config = CHARACTERS[dialogueItem.speaker] || CHARACTERS['本山さん'];
     const textToSpeak = `${dialogueItem.speaker}。${dialogueItem.text}`;
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
 
@@ -358,10 +340,8 @@ function speakUtteranceAsync(dialogueItem) {
     utterance.onend = finish;
     utterance.onerror = finish;
 
-    // Speak utterance
     window.speechSynthesis.speak(utterance);
 
-    // Chrome/Safari speech synthesis work-around for long pauses
     const checkSpeechState = setInterval(() => {
       if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
         clearInterval(checkSpeechState);
@@ -369,7 +349,6 @@ function speakUtteranceAsync(dialogueItem) {
       }
     }, 200);
 
-    // Safety timeout based on text length (e.g. max 15 seconds)
     const maxWaitTime = Math.max(textToSpeak.length * 400, 5000);
     setTimeout(() => {
       clearInterval(checkSpeechState);
@@ -386,7 +365,7 @@ function speakSingle(dialogueItem) {
 
   window.speechSynthesis.cancel();
 
-  const config = CHARACTERS[dialogueItem.speaker] || CHARACTERS['お姉さん'];
+  const config = CHARACTERS[dialogueItem.speaker] || CHARACTERS['本山さん'];
   const utterance = new SpeechSynthesisUtterance(dialogueItem.text);
   utterance.lang = 'ja-JP';
   utterance.pitch = config.pitch;
@@ -401,7 +380,7 @@ function readAllDialogue() {
   window.speechSynthesis.cancel();
 
   STATE.currentDialogue.forEach((item) => {
-    const config = CHARACTERS[item.speaker] || CHARACTERS['お姉さん'];
+    const config = CHARACTERS[item.speaker] || CHARACTERS['本山さん'];
     const textToSpeak = `${item.speaker}。${item.text}`;
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
     utterance.lang = 'ja-JP';
@@ -441,7 +420,7 @@ function handleSaveThought() {
     origin: { y: 0.6 }
   });
 
-  alert('思考ログをデータベースに保存しました！🌟');
+  alert('ノートにほぞんしたよ！よく考えたね！🌟');
 }
 
 function renderSavedThoughts() {
@@ -453,8 +432,8 @@ function renderSavedThoughts() {
   elements.savedThoughtsSection.classList.remove('hidden');
   elements.savedThoughtsList.innerHTML = STATE.savedThoughts.map(t => `
     <div class="saved-item">
-      <div class="saved-q">🚀 ミッション: ${escapeHtml(t.question)}</div>
-      <div class="saved-a">💡 ${escapeHtml(t.author)}の思考ログ: ${escapeHtml(t.opinion)} <small>(${t.date})</small></div>
+      <div class="saved-q">❓ しつもん: ${escapeHtml(t.question)}</div>
+      <div class="saved-a">💡 ${escapeHtml(t.author)}の考え: ${escapeHtml(t.opinion)} <small>(${t.date})</small></div>
     </div>
   `).join('');
 }
