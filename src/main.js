@@ -187,6 +187,14 @@ function init() {
     });
   });
 
+  // Enable sending with Enter key inside text input
+  elements.questionInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleAskQuestion();
+    }
+  });
+
   elements.btnAsk.addEventListener('click', handleAskQuestion);
   elements.btnReadAll.addEventListener('click', readLatestDialogue);
 
@@ -380,7 +388,7 @@ async function renderDialogueSequential(dialogue) {
     `;
 
     elements.dialogueList.appendChild(itemEl);
-    itemEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    scrollToBottom();
 
     const textSpan = itemEl.querySelector('.typed-text');
     const cursorSpan = itemEl.querySelector('.typing-cursor');
@@ -415,6 +423,13 @@ async function renderDialogueSequential(dialogue) {
 }
 
 // Type text character by character
+function scrollToBottom() {
+  window.scrollTo({
+    top: document.body.scrollHeight,
+    behavior: 'smooth'
+  });
+}
+
 function typeTextAsync(element, text, speedMs = 40) {
   return new Promise((resolve) => {
     let index = 0;

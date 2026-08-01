@@ -282,15 +282,122 @@ body.scifi-theme {
   cursor: pointer;
 }
 
-/* Card General */
-.scifi-card {
-  background: var(--card-cyber-bg);
-  border-radius: var(--radius-lg);
-  padding: 24px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  margin-bottom: 24px;
-  border: 1px solid rgba(0, 240, 255, 0.2);
-  backdrop-filter: blur(10px);
+/* Main Scrollable Container Offset for Fixed Footer Bar */
+.main-container {
+  padding-bottom: 140px; /* Leave room for fixed bottom bar */
+}
+
+/* FIXED BOTTOM CHAT BAR */
+.fixed-bottom-chat-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(15, 23, 42, 0.95);
+  border-top: 2px solid var(--neon-cyan);
+  box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.6), 0 0 15px rgba(0, 240, 255, 0.3);
+  backdrop-filter: blur(12px);
+  z-index: 900;
+  padding: 12px 16px;
+}
+
+.bottom-chat-container {
+  max-width: 880px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.voice-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: bold;
+  color: var(--neon-pink);
+  font-size: 0.85rem;
+}
+
+.chat-controls-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-mic-bottom {
+  background: linear-gradient(135deg, #00F0FF 0%, #B026FF 100%);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 12px 18px;
+  border-radius: 30px;
+  font-family: var(--font-cyber);
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.btn-mic-bottom:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 25px rgba(176, 38, 255, 0.6);
+}
+
+.btn-mic-bottom.listening {
+  background: linear-gradient(135deg, #FF2E93 0%, #FF6B6B 100%);
+  animation: pulseMicSciFi 1.2s infinite alternate;
+}
+
+.bottom-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-grow: 1;
+}
+
+.bottom-input-group input[type="text"] {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  border-radius: 24px;
+  color: #fff;
+  font-family: var(--font-cyber);
+  font-size: 0.95rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.bottom-input-group input[type="text"]:focus {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
+}
+
+.btn-send-bottom {
+  background: linear-gradient(135deg, #00FF87 0%, #60EFFF 100%);
+  color: #090D16;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 24px;
+  font-family: var(--font-cyber);
+  font-size: 0.95rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 0 12px rgba(0, 255, 135, 0.4);
+  transition: all 0.2s ease;
+}
+
+.btn-send-bottom:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(0, 255, 135, 0.6);
 }
 
 .scifi-card h2 {

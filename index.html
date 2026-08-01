@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>未来思考ラボ 🚀 - 4人のパートナーと対話しよう</title>
 
   <!-- Futuristic Sci-Fi Fonts -->
@@ -26,9 +26,8 @@
     <header class="app-header scifi-header">
       <div class="header-content">
         <h1 class="app-title">
-          <span class="title-badge">CHAT.SYS v4.0</span>
+          <span class="title-badge">CHAT.SYS v4.5</span>
           <span class="title-text">未来思考ラボ <span class="accent-text">AI LAB</span></span>
-          <span class="subtitle">〜4人と会話を続けて深めよう！〜</span>
         </h1>
         <div class="header-actions">
           <button id="btn-reset-chat" class="btn-cyber-icon" title="新しくやり直す">
@@ -42,7 +41,7 @@
     </header>
 
     <!-- Main Container -->
-    <main class="main-container">
+    <main class="main-container scrollable-chat-area">
 
       <!-- Character Banner (Pods) -->
       <section class="character-banner scifi-pods">
@@ -50,7 +49,7 @@
           <div class="char-avatar-img zoom-face"><img src="/avatars/daigorou.jpg" alt="だいごろう"></div>
           <div class="char-info">
             <span class="char-name">だいごろう</span>
-            <span class="char-role">⚡ 元気・ひらめき</span>
+            <span class="char-role">⚡ ひらめき</span>
           </div>
         </div>
 
@@ -58,7 +57,7 @@
           <div class="char-avatar-img zoom-face"><img src="/avatars/chiikido.jpg" alt="チイキド博士"></div>
           <div class="char-info">
             <span class="char-name">チイキド博士</span>
-            <span class="char-role">🛸 もの知り・理屈</span>
+            <span class="char-role">🛸 もの知り</span>
           </div>
         </div>
 
@@ -66,7 +65,7 @@
           <div class="char-avatar-img zoom-face"><img src="/avatars/tokibaa.jpg" alt="トキばあ"></div>
           <div class="char-info">
             <span class="char-name">トキばあ</span>
-            <span class="char-role">🛡️ おっとり・安心</span>
+            <span class="char-role">🛡️ おっとり</span>
           </div>
         </div>
 
@@ -74,7 +73,7 @@
           <div class="char-avatar-img zoom-face"><img src="/avatars/motoyama.jpg" alt="本山さん"></div>
           <div class="char-info">
             <span class="char-name">本山さん</span>
-            <span class="char-role">💫 共感・サポート</span>
+            <span class="char-role">💫 共感</span>
           </div>
         </div>
       </section>
@@ -94,53 +93,19 @@
         </div>
       </section>
 
-      <!-- Primary Voice & Interactive Chat Console -->
-      <section class="chat-console-section">
-        <div class="card question-card scifi-card">
-          <h2 id="console-title"><span class="cyber-icon">🚀</span> 4人に話しかける</h2>
-
-          <!-- Voice Input Area -->
-          <div class="voice-input-container">
-            <button id="btn-mic" class="btn-mic-primary-scifi">
-              <span class="mic-icon">🎙️</span>
-              <span id="mic-text" class="mic-text">こえで はなしかける（おす）</span>
-            </button>
-            <div id="voice-status" class="voice-status hidden">
-              <span class="pulse-dot"></span> <span id="voice-status-text">声を聞いているよ... 👂</span>
-            </div>
-          </div>
-
-          <div class="input-group">
-            <textarea id="question-input" placeholder="ここにも 文字で書いて返事できるよ！（例: ぼくは◯◯だと思う！）" rows="2"></textarea>
-            <button id="btn-ask" class="btn-primary-scifi">
-              <span class="btn-text">へんじを送る 📡</span>
-              <span class="btn-glitch">SEND</span>
-            </button>
-          </div>
-
-          <!-- Suggested Quick Prompts -->
-          <div id="suggestions-area" class="suggestions-container">
-            <span class="suggestions-title">👾 おすすめのテーマ：</span>
-            <div class="suggestion-tags">
-              <button class="tag-btn scifi-tag" data-question="空はどうして青いの？">🌤️ 空はどうして青いの？</button>
-              <button class="tag-btn scifi-tag" data-question="ロボットとお友達になれるかな？">🤖 ロボットとお友達になれる？</button>
-              <button class="tag-btn scifi-tag" data-question="どうしてお腹が空くの？">🍙 どうしてお腹が空くの？</button>
-              <button class="tag-btn scifi-tag" data-question="未来の車はどうやって走るの？">🚗 未来の車はどう走る？</button>
-            </div>
-          </div>
+      <!-- Suggested Quick Prompts (Only visible at start) -->
+      <section id="suggestions-area" class="suggestions-container scifi-card">
+        <span class="suggestions-title">👾 おすすめの会話テーマ（タップしてみてね）：</span>
+        <div class="suggestion-tags">
+          <button class="tag-btn scifi-tag" data-question="空はどうして青いの？">🌤️ 空はどうして青いの？</button>
+          <button class="tag-btn scifi-tag" data-question="ロボットとお友達になれるかな？">🤖 ロボットとお友達になれる？</button>
+          <button class="tag-btn scifi-tag" data-question="どうしてお腹が空くの？">🍙 どうしてお腹が空くの？</button>
+          <button class="tag-btn scifi-tag" data-question="未来の車はどうやって走るの？">🚗 未来の車はどう走る？</button>
         </div>
       </section>
 
-      <!-- Loading State -->
-      <div id="loading-state" class="loading-container hidden">
-        <div class="cyber-radar-spinner">
-          <div class="radar-sweep"></div>
-        </div>
-        <p class="loading-text cyber-glow-text">4人が会話のへんじを考えています... 📡</p>
-      </div>
-
       <!-- Dialogue History Thread Section -->
-      <section id="dialogue-section" class="dialogue-section hidden">
+      <section id="dialogue-section" class="dialogue-section">
         <div class="dialogue-header">
           <h2><span class="cyber-icon">💬</span> CHAT LOG STREAM</h2>
           <button id="btn-read-all" class="btn-secondary scifi-sub-btn">
@@ -151,9 +116,45 @@
         <div id="dialogue-list" class="dialogue-list scifi-dialogue-list">
           <!-- Continuous chat messages appear here dynamically -->
         </div>
+
+        <!-- Loading State -->
+        <div id="loading-state" class="loading-container hidden">
+          <div class="cyber-radar-spinner">
+            <div class="radar-sweep"></div>
+          </div>
+          <p class="loading-text cyber-glow-text">4人が会話のへんじを考えています... 📡</p>
+        </div>
       </section>
 
     </main>
+
+    <!-- FIXED BOTTOM CHAT CONSOLE (Always visible at the bottom) -->
+    <footer class="fixed-bottom-chat-bar">
+      <div class="bottom-chat-container">
+
+        <!-- Voice Recognition Pulse Bar -->
+        <div id="voice-status" class="voice-status-bar hidden">
+          <span class="pulse-dot"></span> <span id="voice-status-text">声を聞いているよ... 👂</span>
+        </div>
+
+        <div class="chat-controls-wrapper">
+          <!-- Big Primary Mic Button -->
+          <button id="btn-mic" class="btn-mic-bottom">
+            <span class="mic-icon">🎙️</span>
+            <span id="mic-text" class="mic-text-short">こえで はなす</span>
+          </button>
+
+          <!-- Text Input Field & Send Button -->
+          <div class="bottom-input-group">
+            <input type="text" id="question-input" placeholder="ここにも 文字で書いて返事できるよ！" autocomplete="off">
+            <button id="btn-ask" class="btn-send-bottom">
+              <span class="btn-text">送信</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </footer>
 
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal-overlay hidden">
@@ -184,10 +185,6 @@
       </div>
     </div>
 
-    <!-- Footer -->
-    <footer class="app-footer scifi-footer">
-      <p>AI LAB SYSTEM &copy; 2026 - Powered by gemini-3.1-flash-lite & GitHub Pages</p>
-    </footer>
   </div>
 
   <script type="module" src="/src/main.js"></script>
