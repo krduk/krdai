@@ -165,8 +165,12 @@
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label for="api-key-input">🔑 Gemini API Key</label>
+            <label for="api-key-input">🔑 テキスト会話用 APIキー</label>
             <input type="password" id="api-key-input" placeholder="AIzaSy..." autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="image-api-key-input">🎨 画像生成（有料枠）用 APIキー</label>
+            <input type="password" id="image-api-key-input" placeholder="AIzaSy... (未入力の場合はテキスト用キーを使用)" autocomplete="off">
           </div>
           <div class="form-group">
             <label for="select-model">🤖 Target AI Model</label>

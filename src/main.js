@@ -7,6 +7,7 @@ import motoyamaImg from '../public/avatars/motoyama.jpg';
 // State Management
 const STATE = {
   apiKey: localStorage.getItem('gemini_api_key') || '',
+  imageApiKey: localStorage.getItem('gemini_image_api_key') || '',
   model: 'gemini-3.1-flash-lite',
   autoSpeech: localStorage.getItem('auto_speech') !== 'false',
   childName: localStorage.getItem('child_name') || 'きみ',
@@ -80,6 +81,7 @@ const elements = {
   btnCloseModal: document.getElementById('btn-close-modal'),
   btnSaveSettings: document.getElementById('btn-save-settings'),
   apiKeyInput: document.getElementById('api-key-input'),
+  imageApiKeyInput: document.getElementById('image-api-key-input'),
   selectModel: document.getElementById('select-model'),
   checkAutoSpeech: document.getElementById('check-auto-speech'),
   inputChildName: document.getElementById('input-child-name'),
@@ -174,6 +176,9 @@ function stopListening() {
 // Initialize Application
 function init() {
   elements.apiKeyInput.value = STATE.apiKey;
+  if (elements.imageApiKeyInput) {
+    elements.imageApiKeyInput.value = STATE.imageApiKey;
+  }
   elements.checkAutoSpeech.checked = STATE.autoSpeech;
   elements.inputChildName.value = STATE.childName;
   elements.selectHonorific.value = STATE.honorific;
@@ -230,6 +235,10 @@ function toggleModal(show) {
 
 function saveSettings() {
   STATE.apiKey = elements.apiKeyInput.value.trim();
+  if (elements.imageApiKeyInput) {
+    STATE.imageApiKey = elements.imageApiKeyInput.value.trim();
+    localStorage.setItem('gemini_image_api_key', STATE.imageApiKey);
+  }
   STATE.autoSpeech = elements.checkAutoSpeech.checked;
 
   localStorage.setItem('gemini_api_key', STATE.apiKey);
@@ -357,7 +366,8 @@ function renderUserMessage(text, childFullName) {
 // Helper to generate image using gemini-3.1-flash-lite-image model
 async function generateExplanationImage(promptText) {
   try {
-    const genAI = new GoogleGenerativeAI(STATE.apiKey);
+    const apiKeyToUse = STATE.imageApiKey || STATE.apiKey;
+    const genAI = new GoogleGenerativeAI(apiKeyToUse);
     const imageModel = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-image' });
     const result = await imageModel.generateContent({
       contents: [{ role: 'user', parts: [{ text: promptText }] }]
