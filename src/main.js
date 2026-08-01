@@ -13,12 +13,12 @@ const STATE = {
   isDisplayingDialogue: false
 };
 
-// Character Config
+// Character Config with Generated Sci-Fi Anime Avatar Images
 const CHARACTERS = {
-  'こども': { emoji: '👦', class: 'speech-kodomo', pitch: 1.4, rate: 1.1 },
-  '博士': { emoji: '🔬', class: 'speech-hakase', pitch: 0.9, rate: 1.0 },
-  'おばあちゃん': { emoji: '👵', class: 'speech-obachan', pitch: 0.8, rate: 0.85 },
-  'お姉さん': { emoji: '👩', class: 'speech-oneesan', pitch: 1.25, rate: 1.05 }
+  'こども': { image: './avatars/kodomo.jpg', class: 'speech-kodomo', pitch: 1.4, rate: 1.1 },
+  '博士': { image: './avatars/hakase.jpg', class: 'speech-hakase', pitch: 0.9, rate: 1.0 },
+  'おばあちゃん': { image: './avatars/obachan.jpg', class: 'speech-obachan', pitch: 0.8, rate: 0.85 },
+  'お姉さん': { image: './avatars/oneesan.jpg', class: 'speech-oneesan', pitch: 1.25, rate: 1.05 }
 };
 
 const CHARACTER_NAMES = ['こども', '博士', 'おばあちゃん', 'お姉さん'];
@@ -248,7 +248,7 @@ async function renderDialogueSequential(dialogue, childFullName) {
     const itemEl = document.createElement('div');
     itemEl.className = `speech-bubble-item ${config.class}`;
     itemEl.innerHTML = `
-      <div class="speech-avatar">${config.emoji}</div>
+      <div class="speech-avatar-img"><img src="${config.image}" alt="${item.speaker}"></div>
       <div class="speech-content">
         <div class="speech-speaker">${item.speaker}</div>
         <div class="speech-text"><span class="typed-text"></span><span class="typing-cursor"></span></div>
