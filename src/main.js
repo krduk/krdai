@@ -65,6 +65,7 @@ const getSystemPrompt = (childFullName) => {
 - ユーザー（${childFullName}）の発言内容やこれまでの会話の流れを受けて、**4人で会話を繋げて自然に返答**してください。
 - 今回の進行役は必ず【${facilitator}】が行ってください。【${facilitator}】が会話を受け止め、またはまとめ、**最後に必ず「${childFullName}は、どう思う？」や「〜〜はどうかな？」など次のお返事を促す問いかけ**をして終わってください。
 - 子供が理解しやすい簡単な言葉（小学校低学年向け）を使い、1発言あたり1〜2文のテンポよい【劇のセリフ形式】で出力してください。
+- 劇の会話の**一番最後の行に必ず**【OPTIONS: 返答の選択肢1 | 返答の選択肢2 | 返答の選択肢3】（例: 【OPTIONS: 詳しく教えて！ | 面白そうだね！ | 別のことも聞きたい】）という形式で、子供がワンタップで返答できる3つの選択肢を出力してください。
 
 # 出力フォーマットの例
 ${facilitator}「${childFullName}、素敵なアイデアだね！みんなはどう思う？」
@@ -72,6 +73,7 @@ ${others[0]}「ぼくは〜〜だと思うな！」
 ${others[1]}「〜〜という考え方もありますよ。」
 ${others[2]}「う〜ん、〜〜かもしれないねぇ。」
 ${facilitator}「みんな色んな考えがあるね！${childFullName}、次はどうしてみる？」
+【OPTIONS: 詳しく教えて！ | 楽しそうだね！ | 他の考えもあるよ】
 `;
 };
 
@@ -394,11 +396,20 @@ async function generateExplanationImage(promptText) {
 function parseDialogue(rawText) {
   const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
   const dialogue = [];
+  let options = [];
 
   const regex = /^(だいごろう|チイキド博士|トキばあ|本山さん)[「:：](.*)[」]?$/;
   const imageTagRegex = /【IMAGE:\s*(.*?)】/i;
+  const optionsTagRegex = /【OPTIONS:\s*(.*?)】/i;
 
   lines.forEach(line => {
+    // Check for OPTIONS tag
+    const optMatch = line.match(optionsTagRegex);
+    if (optMatch) {
+      options = optMatch[1].split('|').map(s => s.trim()).filter(s => s.length > 0);
+      return;
+    }
+
     let imagePrompt = null;
     const imgMatch = line.match(imageTagRegex);
     if (imgMatch) {
@@ -421,11 +432,19 @@ function parseDialogue(rawText) {
     }
   });
 
-  return dialogue;
+  // Fallback options if model missed OPTIONS tag
+  if (options.length === 0) {
+    options = ['もっと詳しく教えて！', 'おもしろそうだね！', '別のことも聞きたい！'];
+  }
+
+  return { dialogue, options };
 }
 
 // Render Character Speech Bubbles Sequentially
-async function renderDialogueSequential(dialogue) {
+async function renderDialogueSequential(parsedData) {
+  const dialogue = parsedData.dialogue;
+  const options = parsedData.options || [];
+
   STATE.isDisplayingDialogue = true;
 
   for (let i = 0; i < dialogue.length; i++) {
@@ -496,7 +515,43 @@ async function renderDialogueSequential(dialogue) {
     };
   });
 
+  // Render 3 Response Options at the end of dialogue
+  if (options && options.length > 0) {
+    renderResponseOptions(options);
+  }
+
   STATE.isDisplayingDialogue = false;
+}
+
+// Render Option Buttons for child to pick easily
+function renderResponseOptions(options) {
+  // Remove existing option containers if any
+  const oldContainer = elements.dialogueList.querySelector('.reply-options-container');
+  if (oldContainer) {
+    oldContainer.remove();
+  }
+
+  const optionsContainer = document.createElement('div');
+  optionsContainer.className = 'reply-options-container';
+  optionsContainer.innerHTML = `<span class="options-label">💡 へんじの選択肢（タップで返事）：</span>`;
+
+  const buttonsGroup = document.createElement('div');
+  buttonsGroup.className = 'reply-options-buttons';
+
+  options.forEach(optText => {
+    const btn = document.createElement('button');
+    btn.className = 'btn-reply-option';
+    btn.textContent = optText;
+    btn.onclick = () => {
+      elements.questionInput.value = optText;
+      handleAskQuestion();
+    };
+    buttonsGroup.appendChild(btn);
+  });
+
+  optionsContainer.appendChild(buttonsGroup);
+  elements.dialogueList.appendChild(optionsContainer);
+  scrollToBottom();
 }
 
 // Type text character by character
@@ -534,7 +589,7 @@ function speakUtteranceAsync(dialogueItem) {
     window.speechSynthesis.cancel();
 
     const config = CHARACTERS[dialogueItem.speaker] || CHARACTERS['本山さん'];
-    const textToSpeak = `${dialogueItem.speaker}。${dialogueItem.text}`;
+    const textToSpeak = dialogueItem.text;
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
 
     utterance.lang = 'ja-JP';
@@ -600,7 +655,7 @@ function readLatestDialogue() {
       const text = textEl.textContent.trim();
       const config = CHARACTERS[speaker] || CHARACTERS['本山さん'];
       
-      const utterance = new SpeechSynthesisUtterance(`${speaker}。${text}`);
+      const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'ja-JP';
       if (config) {
         utterance.pitch = config.pitch;
