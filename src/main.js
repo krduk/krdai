@@ -1,5 +1,4 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import confetti from 'canvas-confetti';
 
 // State Management
 const STATE = {
@@ -8,12 +7,11 @@ const STATE = {
   autoSpeech: localStorage.getItem('auto_speech') !== 'false',
   childName: localStorage.getItem('child_name') || 'きみ',
   honorific: localStorage.getItem('honorific') || 'くん',
-  savedThoughts: JSON.parse(localStorage.getItem('saved_thoughts') || '[]'),
-  currentDialogue: [],
+  chatHistory: [], // Holds multi-turn conversation thread
   isDisplayingDialogue: false
 };
 
-// Character Config (Warm Picture-Book Style)
+// Character Config (Face close-ups via CSS zoom-face)
 const CHARACTERS = {
   'だいごろう': { image: './avatars/daigorou.jpg', class: 'speech-daigorou', pitch: 1.4, rate: 1.1 },
   'チイキド博士': { image: './avatars/chiikido.jpg', class: 'speech-chiikido', pitch: 0.9, rate: 1.0 },
@@ -33,18 +31,18 @@ function shuffleArray(array) {
   return arr;
 }
 
-// System Prompt Template with dynamic facilitator and warm non-AI persona
+// Dynamic System Prompt Supporting Continuous Dialogue Context
 const getSystemPrompt = (childFullName) => {
   const facilitator = CHARACTER_NAMES[Math.floor(Math.random() * CHARACTER_NAMES.length)];
   const others = shuffleArray(CHARACTER_NAMES.filter(name => name !== facilitator));
 
   return `
 # 目的
-ユーザー（子供）の質問に対して、4人の親しみやすいキャラクターがそれぞれの視点で楽しく話し合い、最終的に子供自身にどう思うかを考えてもらうための対話です。
+ユーザー（子供）の質問や返答に対して、4人のキャラクター（だいごろう、チイキド博士、トキばあ、本山さん）がそれぞれの視点で楽しく会話を継続・深掘りし、子供がさらに自分の考えを深められるようにするAIです。
 
-# 今回の劇の演出指定（最重要）
+# 今回の劇の進行指定
 - **今回の進行役（案内役）**: 【${facilitator}】
-- **発言の参加順序例**: ${facilitator}（最初の呼びかけ） ➔ ${others[0]} ➔ ${others[1]} ➔ ${others[2]} ➔ ${facilitator}（まとめ＆問いかけ）
+- **発言メンバー**: ${facilitator}、${others[0]}、${others[1]}、${others[2]}
 
 # キャラクター（ペルソナ）設定
 1. **だいごろう**：元気いっぱいの男の子。「〜〜したら楽しそう！」という無邪気で楽しい視点。
@@ -52,23 +50,24 @@ const getSystemPrompt = (childFullName) => {
 3. **トキばあ**：おっとりしたおばあちゃん。「〜〜かもしれないよぉ」という優しく慎重な視点。
 4. **本山さん**：しっかりもののお姉さん。「なるほどね！〜〜な気持ちもわかるな」という共感・まとめ視点。
 
-# 応答の重要ルール
-- AIやシステムといった表現・言葉は一切使わないでください。自然な人間の劇・話し合いとして出力してください。
-- **今回の進行役は必ず【${facilitator}】が行ってください。**【${facilitator}】が最初に質問を受け止め、会話の最後に必ず「${childFullName}は、どう思う？」と優しく問いかけて終わってください。
+# 応答の重要ルール（継続対話）
+- ユーザー（${childFullName}）の発言内容やこれまでの会話の流れを受けて、**4人で会話を繋げて自然に返答**してください。
+- 今回の進行役は必ず【${facilitator}】が行ってください。【${facilitator}】が会話を受け止め、またはまとめ、**最後に必ず「${childFullName}は、どう思う？」や「〜〜はどうかな？」など次のお返事を促す問いかけ**をして終わってください。
 - 子供が理解しやすい簡単な言葉（小学校低学年向け）を使い、1発言あたり1〜2文のテンポよい【劇のセリフ形式】で出力してください。
 
 # 出力フォーマットの例
-${facilitator}「面白そうな質問だね！みんなはどう思う？」
-${others[0]}「〜〜〜！」
-${others[1]}「〜〜〜です。」
-${others[2]}「〜〜〜かもねぇ。」
-${facilitator}「みんな色んな意見があるね！${childFullName}は、どう思う？」
+${facilitator}「${childFullName}、素敵なアイデアだね！みんなはどう思う？」
+${others[0]}「ぼくは〜〜だと思うな！」
+${others[1]}「〜〜という考え方もありますよ。」
+${others[2]}「う〜ん、〜〜かもしれないねぇ。」
+${facilitator}「みんな色んな考えがあるね！${childFullName}、次はどうしてみる？」
 `;
 };
 
 // DOM Elements
 const elements = {
   btnSettings: document.getElementById('btn-settings'),
+  btnResetChat: document.getElementById('btn-reset-chat'),
   settingsModal: document.getElementById('settings-modal'),
   btnCloseModal: document.getElementById('btn-close-modal'),
   btnSaveSettings: document.getElementById('btn-save-settings'),
@@ -87,15 +86,11 @@ const elements = {
   dialogueSection: document.getElementById('dialogue-section'),
   dialogueList: document.getElementById('dialogue-list'),
   btnReadAll: document.getElementById('btn-read-all'),
-  thoughtSection: document.getElementById('thought-section'),
-  thoughtPromptName: document.getElementById('thought-prompt-name'),
-  inputMyOpinion: document.getElementById('input-my-opinion'),
-  btnSaveThought: document.getElementById('btn-save-thought'),
-  savedThoughtsSection: document.getElementById('saved-thoughts-section'),
-  savedThoughtsList: document.getElementById('saved-thoughts-list')
+  suggestionsArea: document.getElementById('suggestions-area'),
+  consoleTitle: document.getElementById('console-title')
 };
 
-// Speech Recognition Instance
+// Speech Recognition
 let recognition = null;
 let isListening = false;
 
@@ -104,7 +99,6 @@ function initSpeechRecognition() {
 
   if (!SpeechRecognition) {
     elements.btnMic.style.display = 'none';
-    console.warn('SpeechRecognition API is not supported in this browser.');
     return;
   }
 
@@ -116,9 +110,9 @@ function initSpeechRecognition() {
   recognition.onstart = () => {
     isListening = true;
     elements.btnMic.classList.add('listening');
-    elements.micText.textContent = '聞いています...（もう一度おすと止まる）';
+    elements.micText.textContent = '聞いています...（おすと止まる）';
     elements.voiceStatus.classList.remove('hidden');
-    elements.voiceStatusText.textContent = 'おはなしを聞いているよ... 👂';
+    elements.voiceStatusText.textContent = '声を聞いているよ... 👂';
   };
 
   recognition.onresult = (event) => {
@@ -132,19 +126,15 @@ function initSpeechRecognition() {
   recognition.onerror = (event) => {
     console.error('Speech recognition error:', event.error);
     stopListening();
-    if (event.error === 'not-allowed') {
-      alert('マイクの使用が許可されていません。ブラウザの設定でマイクを許可してください。');
-    }
   };
 
   recognition.onend = () => {
     stopListening();
-    // Auto submit if text was transcribed
     const text = elements.questionInput.value.trim();
     if (text && !STATE.isDisplayingDialogue) {
       setTimeout(() => {
         handleAskQuestion();
-      }, 500);
+      }, 400);
     }
   };
 
@@ -155,7 +145,6 @@ function toggleListening() {
   if (isListening) {
     recognition.stop();
   } else {
-    // Cancel any TTS reading when user starts speaking
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
@@ -181,13 +170,13 @@ function init() {
   elements.inputChildName.value = STATE.childName;
   elements.selectHonorific.value = STATE.honorific;
 
-  renderSavedThoughts();
   initSpeechRecognition();
 
   elements.btnSettings.addEventListener('click', () => toggleModal(true));
   elements.btnCloseModal.addEventListener('click', () => toggleModal(false));
   elements.btnSaveSettings.addEventListener('click', saveSettings);
-  
+  elements.btnResetChat.addEventListener('click', resetChatSession);
+
   elements.inputChildName.addEventListener('change', updateChildProfile);
   elements.selectHonorific.addEventListener('change', updateChildProfile);
 
@@ -199,8 +188,7 @@ function init() {
   });
 
   elements.btnAsk.addEventListener('click', handleAskQuestion);
-  elements.btnReadAll.addEventListener('click', readAllDialogue);
-  elements.btnSaveThought.addEventListener('click', handleSaveThought);
+  elements.btnReadAll.addEventListener('click', readLatestDialogue);
 
   if (!STATE.apiKey) {
     setTimeout(() => {
@@ -232,16 +220,33 @@ function saveSettings() {
   localStorage.setItem('auto_speech', STATE.autoSpeech);
 
   toggleModal(false);
-  alert('設定をほぞんしました！✨');
+  alert('設定を保存しました！✨');
 }
 
-// Ask Gemini Question
+// Reset Conversation Session
+function resetChatSession() {
+  if (STATE.isDisplayingDialogue) return;
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+
+  STATE.chatHistory = [];
+  elements.dialogueList.innerHTML = '';
+  elements.dialogueSection.classList.add('hidden');
+  elements.suggestionsArea.classList.remove('hidden');
+  elements.consoleTitle.innerHTML = `<span class="cyber-icon">🚀</span> 4人に話しかける`;
+  elements.questionInput.value = '';
+
+  alert('会話を新しくリセットしました！✨');
+}
+
+// Ask or Reply in Chat Thread
 async function handleAskQuestion() {
   if (STATE.isDisplayingDialogue) return;
 
-  const question = elements.questionInput.value.trim();
-  if (!question) {
-    alert('しつもんを入力してね！');
+  const userText = elements.questionInput.value.trim();
+  if (!userText) {
+    alert('へんじ や しつもんを入力してね！');
     return;
   }
 
@@ -255,34 +260,55 @@ async function handleAskQuestion() {
     window.speechSynthesis.cancel();
   }
 
-  elements.dialogueSection.classList.add('hidden');
-  elements.thoughtSection.classList.add('hidden');
+  // Hide suggestion tags after first message
+  elements.suggestionsArea.classList.add('hidden');
   elements.loadingState.classList.remove('hidden');
+  elements.questionInput.value = '';
 
   const childFullName = `${STATE.childName}${STATE.honorific}`;
+
+  // Render User's message bubble in stream
+  renderUserMessage(userText, childFullName);
+
+  // Append user message to chat history
+  STATE.chatHistory.push({ role: 'user', content: userText });
 
   try {
     const genAI = new GoogleGenerativeAI(STATE.apiKey);
     const targetModel = 'gemini-3.1-flash-lite';
-    
-    console.log(`Requesting Gemini model: ${targetModel}`);
-    const model = genAI.getGenerativeModel({
-      model: targetModel,
-      systemInstruction: getSystemPrompt(childFullName)
+
+    // Construct full prompt with previous conversation history
+    let contextPrompt = getSystemPrompt(childFullName) + '\n\n# これまでの会話の流れ:\n';
+    STATE.chatHistory.forEach(msg => {
+      if (msg.role === 'user') {
+        contextPrompt += `${childFullName}: 「${msg.content}」\n`;
+      } else {
+        contextPrompt += `${msg.content}\n`;
+      }
     });
 
-    const result = await model.generateContent(question);
+    const model = genAI.getGenerativeModel({
+      model: targetModel,
+      systemInstruction: contextPrompt
+    });
+
+    const result = await model.generateContent(`最新の${childFullName}の発言: 「${userText}」に返答してください。`);
     const responseText = result.response.text();
 
     if (!responseText) {
       throw new Error('返答を取得できませんでした。');
     }
 
-    const parsedDialogue = parseDialogue(responseText);
-    STATE.currentDialogue = parsedDialogue;
+    // Append AI response to chat history
+    STATE.chatHistory.push({ role: 'model', content: responseText });
 
-    // Render dialogue with typing effect and sequential live play
-    await renderDialogueSequential(parsedDialogue, childFullName);
+    const parsedDialogue = parseDialogue(responseText);
+
+    // Update console title to encourage continuing conversation
+    elements.consoleTitle.innerHTML = `<span class="cyber-icon">💬</span> 4人へのへんじ・つづきを話す`;
+
+    // Render dialogue with typing effect and voice
+    await renderDialogueSequential(parsedDialogue);
 
   } catch (error) {
     console.error('Error fetching Gemini response:', error);
@@ -290,6 +316,24 @@ async function handleAskQuestion() {
   } finally {
     elements.loadingState.classList.add('hidden');
   }
+}
+
+// Render User Message Bubble
+function renderUserMessage(text, childFullName) {
+  elements.dialogueSection.classList.remove('hidden');
+
+  const itemEl = document.createElement('div');
+  itemEl.className = 'speech-bubble-item speech-user';
+  itemEl.innerHTML = `
+    <div class="user-avatar-icon">👤</div>
+    <div class="speech-content">
+      <div class="speech-speaker">${escapeHtml(childFullName)}</div>
+      <div class="speech-text">${escapeHtml(text)}</div>
+    </div>
+  `;
+
+  elements.dialogueList.appendChild(itemEl);
+  itemEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 // Parse Gemini line-by-line script response
@@ -314,12 +358,9 @@ function parseDialogue(rawText) {
   return dialogue;
 }
 
-// Sequential Live Play with Synchronized Typing & Speech Synthesis
-async function renderDialogueSequential(dialogue, childFullName) {
+// Render Character Speech Bubbles Sequentially
+async function renderDialogueSequential(dialogue) {
   STATE.isDisplayingDialogue = true;
-  elements.dialogueList.innerHTML = '';
-  elements.dialogueSection.classList.remove('hidden');
-  elements.dialogueSection.scrollIntoView({ behavior: 'smooth' });
 
   for (let i = 0; i < dialogue.length; i++) {
     const item = dialogue[i];
@@ -328,12 +369,12 @@ async function renderDialogueSequential(dialogue, childFullName) {
     const itemEl = document.createElement('div');
     itemEl.className = `speech-bubble-item ${config.class}`;
     itemEl.innerHTML = `
-      <div class="speech-avatar-img"><img src="${config.image}" alt="${item.speaker}"></div>
+      <div class="speech-avatar-img zoom-face"><img src="${config.image}" alt="${item.speaker}"></div>
       <div class="speech-content">
         <div class="speech-speaker">${item.speaker}</div>
         <div class="speech-text"><span class="typed-text"></span><span class="typing-cursor"></span></div>
         <div class="speech-action">
-          <button class="btn-speak-single" data-index="${i}">🔊 きく</button>
+          <button class="btn-speak-single" data-speaker="${item.speaker}" data-text="${escapeHtml(item.text)}">🔊 きく</button>
         </div>
       </div>
     `;
@@ -363,17 +404,12 @@ async function renderDialogueSequential(dialogue, childFullName) {
     await new Promise(r => setTimeout(r, 600));
   }
 
+  // Attach individual click handlers for re-playing speech
   document.querySelectorAll('.btn-speak-single').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const idx = e.target.dataset.index;
-      speakSingle(dialogue[idx]);
-    });
+    btn.onclick = () => {
+      speakSingle({ speaker: btn.dataset.speaker, text: btn.dataset.text });
+    };
   });
-
-  elements.thoughtSection.classList.remove('hidden');
-  elements.thoughtPromptName.textContent = childFullName;
-  elements.inputMyOpinion.value = '';
-  elements.thoughtSection.scrollIntoView({ behavior: 'smooth' });
 
   STATE.isDisplayingDialogue = false;
 }
@@ -458,68 +494,29 @@ function speakSingle(dialogueItem) {
   window.speechSynthesis.speak(utterance);
 }
 
-function readAllDialogue() {
-  if (!('speechSynthesis' in window) || STATE.currentDialogue.length === 0) return;
+function readLatestDialogue() {
+  const latestItems = elements.dialogueList.querySelectorAll('.speech-bubble-item');
+  if (!('speechSynthesis' in window) || latestItems.length === 0) return;
 
   window.speechSynthesis.cancel();
 
-  STATE.currentDialogue.forEach((item) => {
-    const config = CHARACTERS[item.speaker] || CHARACTERS['本山さん'];
-    const textToSpeak = `${item.speaker}。${item.text}`;
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.lang = 'ja-JP';
-    utterance.pitch = config.pitch;
-    utterance.rate = config.rate;
-
-    window.speechSynthesis.speak(utterance);
+  latestItems.forEach((el) => {
+    const speakerEl = el.querySelector('.speech-speaker');
+    const textEl = el.querySelector('.typed-text') || el.querySelector('.speech-text');
+    if (speakerEl && textEl) {
+      const speaker = speakerEl.textContent.trim();
+      const text = textEl.textContent.trim();
+      const config = CHARACTERS[speaker] || CHARACTERS['本山さん'];
+      
+      const utterance = new SpeechSynthesisUtterance(`${speaker}。${text}`);
+      utterance.lang = 'ja-JP';
+      if (config) {
+        utterance.pitch = config.pitch;
+        utterance.rate = config.rate;
+      }
+      window.speechSynthesis.speak(utterance);
+    }
   });
-}
-
-// Save Thought to Notebook
-function handleSaveThought() {
-  const opinion = elements.inputMyOpinion.value.trim();
-  const question = elements.questionInput.value.trim();
-
-  if (!opinion) {
-    alert('じぶんの考えを入力してね！');
-    return;
-  }
-
-  const thoughtRecord = {
-    id: Date.now(),
-    date: new Date().toLocaleDateString('ja-JP'),
-    question: question,
-    opinion: opinion,
-    author: `${STATE.childName}${STATE.honorific}`
-  };
-
-  STATE.savedThoughts.unshift(thoughtRecord);
-  localStorage.setItem('saved_thoughts', JSON.stringify(STATE.savedThoughts));
-
-  renderSavedThoughts();
-
-  confetti({
-    particleCount: 120,
-    spread: 80,
-    origin: { y: 0.6 }
-  });
-
-  alert('ノートにほぞんしたよ！よく考えたね！🌟');
-}
-
-function renderSavedThoughts() {
-  if (STATE.savedThoughts.length === 0) {
-    elements.savedThoughtsSection.classList.add('hidden');
-    return;
-  }
-
-  elements.savedThoughtsSection.classList.remove('hidden');
-  elements.savedThoughtsList.innerHTML = STATE.savedThoughts.map(t => `
-    <div class="saved-item">
-      <div class="saved-q">❓ しつもん: ${escapeHtml(t.question)}</div>
-      <div class="saved-a">💡 ${escapeHtml(t.author)}の考え: ${escapeHtml(t.opinion)} <small>(${t.date})</small></div>
-    </div>
-  `).join('');
 }
 
 function escapeHtml(str) {
