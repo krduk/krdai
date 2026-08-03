@@ -6,6 +6,16 @@ import tokibaaImg from '../public/avatars/tokibaa.jpg';
 import motoyamaImg from '../public/avatars/motoyama.jpg';
 
 // State Management
+const todayKey = new Date().toISOString().split('T')[0];
+const savedDate = localStorage.getItem('krdai_usage_date');
+let dailyUsage = 0;
+if (savedDate === todayKey) {
+  dailyUsage = parseInt(localStorage.getItem('krdai_daily_usage') || '0', 10);
+} else {
+  localStorage.setItem('krdai_usage_date', todayKey);
+  localStorage.setItem('krdai_daily_usage', '0');
+}
+
 const STATE = {
   apiKey: localStorage.getItem('gemini_api_key') || '',
   imageApiKey: localStorage.getItem('gemini_image_api_key') || '',
@@ -14,7 +24,11 @@ const STATE = {
   childName: localStorage.getItem('child_name') || 'きみ',
   honorific: localStorage.getItem('honorific') || 'くん',
   chatHistory: [], // Holds multi-turn conversation thread
-  isDisplayingDialogue: false
+  isDisplayingDialogue: false,
+  dailyUsageSeconds: dailyUsage,
+  continuousUsageSeconds: 0,
+  restUntilTimestamp: parseInt(localStorage.getItem('krdai_rest_until') || '0', 10),
+  isLocked: false
 };
 
 // Character Config (Face close-ups via CSS zoom-face)
@@ -103,7 +117,18 @@ const elements = {
   btnReadAll: document.getElementById('btn-read-all'),
   suggestionsArea: document.getElementById('suggestions-area'),
   suggestionTags: document.getElementById('suggestion-tags'),
-  consoleTitle: document.getElementById('console-title')
+  consoleTitle: document.getElementById('console-title'),
+  timerBadge: document.getElementById('timer-badge'),
+  timerText: document.getElementById('timer-text'),
+  lockModal: document.getElementById('lock-modal'),
+  lockTitle: document.getElementById('lock-title'),
+  lockReasonText: document.getElementById('lock-reason-text'),
+  quizContainer: document.getElementById('quiz-container'),
+  quizQuestionText: document.getElementById('quiz-question-text'),
+  quizOptionsGroup: document.getElementById('quiz-options-group'),
+  quizFeedback: document.getElementById('quiz-feedback'),
+  restTimerContainer: document.getElementById('rest-timer-container'),
+  restCountdownText: document.getElementById('rest-countdown-text')
 };
 
 // Speech Recognition
@@ -200,6 +225,195 @@ function renderRandomSuggestions() {
   });
 }
 
+// Timer & Lock Management
+let usageTimerInterval = null;
+let lastInteractionTime = Date.now();
+
+function startUsageTimer() {
+  if (usageTimerInterval) clearInterval(usageTimerInterval);
+
+  usageTimerInterval = setInterval(() => {
+    const now = Date.now();
+    
+    // Check if in rest lock period
+    if (STATE.restUntilTimestamp > now) {
+      triggerRestLock();
+      updateTimerBadge();
+      return;
+    } else if (STATE.restUntilTimestamp > 0 && STATE.restUntilTimestamp <= now) {
+      // Rest period expired -> clear rest
+      STATE.restUntilTimestamp = 0;
+      localStorage.removeItem('krdai_rest_until');
+      STATE.continuousUsageSeconds = 0;
+      hideLockModal();
+    }
+
+    // Reset continuous usage if idle for > 3 minutes
+    if (now - lastInteractionTime > 3 * 60 * 1000) {
+      STATE.continuousUsageSeconds = 0;
+    } else {
+      STATE.continuousUsageSeconds += 1;
+    }
+
+    STATE.dailyUsageSeconds += 1;
+    localStorage.setItem('krdai_daily_usage', STATE.dailyUsageSeconds.toString());
+
+    updateTimerBadge();
+
+    // Check Lock Conditions
+    // 1. Continuous usage >= 10 mins (600s) -> 30 mins rest lock
+    if (STATE.continuousUsageSeconds >= 600) {
+      const restUntil = now + 30 * 60 * 1000;
+      STATE.restUntilTimestamp = restUntil;
+      localStorage.setItem('krdai_rest_until', restUntil.toString());
+      triggerRestLock();
+      return;
+    }
+
+    // 2. Daily total usage >= 30 mins (1800s) -> Daily Quiz Lock
+    if (STATE.dailyUsageSeconds >= 1800 && !STATE.isLocked) {
+      triggerDailyQuizLock();
+      return;
+    }
+  }, 1000);
+}
+
+function updateTimerBadge() {
+  if (!elements.timerText) return;
+  const dailyMins = Math.floor(STATE.dailyUsageSeconds / 60);
+  const contMins = Math.floor(STATE.continuousUsageSeconds / 60);
+  elements.timerText.textContent = `${dailyMins}分 / ${contMins}分`;
+}
+
+function triggerRestLock() {
+  STATE.isLocked = true;
+  if (!elements.lockModal) return;
+
+  elements.lockModal.classList.remove('hidden');
+  elements.lockTitle.textContent = '🛑 30分間のきゅうけいタイム！';
+  elements.lockReasonText.textContent = '10ふんかん つづけてあそんだよ！目をやすめるために 30ふんかん きゅうけいしよう！';
+  
+  elements.quizContainer.classList.add('hidden');
+  elements.restTimerContainer.classList.remove('hidden');
+
+  updateRestCountdown();
+}
+
+function updateRestCountdown() {
+  const remainingMs = Math.max(0, STATE.restUntilTimestamp - Date.now());
+  const remainingSecs = Math.floor(remainingMs / 1000);
+  const mins = Math.floor(remainingSecs / 60).toString().padStart(2, '0');
+  const secs = (remainingSecs % 60).toString().padStart(2, '0');
+  if (elements.restCountdownText) {
+    elements.restCountdownText.textContent = `${mins}:${secs}`;
+  }
+}
+
+async function triggerDailyQuizLock() {
+  STATE.isLocked = true;
+  if (!elements.lockModal) return;
+
+  elements.lockModal.classList.remove('hidden');
+  elements.lockTitle.textContent = '🔒 本日のご利用上限（30分）に達しました';
+  elements.lockReasonText.textContent = 'きょうは30ふんかん たくさんべんきょうしたね！ロックを解除するには、今日学んだクイズに正解してね！';
+
+  elements.restTimerContainer.classList.add('hidden');
+  elements.quizContainer.classList.remove('hidden');
+  elements.quizFeedback.textContent = '';
+  elements.quizFeedback.className = 'quiz-feedback';
+
+  await generateAndRenderUnlockQuiz();
+}
+
+function hideLockModal() {
+  STATE.isLocked = false;
+  if (elements.lockModal) {
+    elements.lockModal.classList.add('hidden');
+  }
+}
+
+// Generate Quiz using Gemini based on recent 5 minutes chat history
+async function generateAndRenderUnlockQuiz() {
+  elements.quizQuestionText.textContent = '🧠 今日の会話からクイズを作成中... 📡';
+  elements.quizOptionsGroup.innerHTML = '';
+
+  // Get recent 5 mins messages or recent 6 messages from history
+  const recentMessages = STATE.chatHistory.slice(-8);
+
+  let recentText = '';
+  recentMessages.forEach(msg => {
+    recentText += `${msg.role}: ${msg.content}\n`;
+  });
+
+  if (!recentText.trim()) {
+    recentText = 'チイキド博士: 空が青いのは太陽の光が空気とぶつかって散らばるからじゃよ。';
+  }
+
+  const quizPrompt = `
+以下の会話内容から、小学生（低学年）が学べる「3択クイズ」を1問作成してください。
+
+# 直近の会話内容:
+${recentText}
+
+# 出力フォーマット（厳密にこのJSON形式のみで返答してください）:
+{
+  "question": "クイズの質問文",
+  "options": ["選択肢1", "選択肢2", "選択肢3"],
+  "answerIndex": 正解のインデックス(0, 1, または 2)
+}
+`;
+
+  try {
+    const genAI = new GoogleGenerativeAI(STATE.apiKey);
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-3.1-flash-lite',
+      generationConfig: { responseMimeType: 'application/json' }
+    });
+
+    const result = await model.generateContent(quizPrompt);
+    const quizData = JSON.parse(result.response.text());
+
+    renderQuizUI(quizData);
+  } catch (err) {
+    console.error('Quiz generation error:', err);
+    // Fallback quiz
+    renderQuizUI({
+      question: 'チイキド博士たちが今日いっしょにお話ししたテーマは？',
+      options: ['楽しく考えること', '寝ること', 'ゲームをすること'],
+      answerIndex: 0
+    });
+  }
+}
+
+function renderQuizUI(quizData) {
+  elements.quizQuestionText.textContent = quizData.question;
+  elements.quizOptionsGroup.innerHTML = '';
+
+  quizData.options.forEach((optText, index) => {
+    const btn = document.createElement('button');
+    btn.className = 'btn-quiz-option';
+    btn.textContent = `${index + 1}. ${optText}`;
+    btn.onclick = () => checkQuizAnswer(index, quizData.answerIndex);
+    elements.quizOptionsGroup.appendChild(btn);
+  });
+}
+
+function checkQuizAnswer(selectedIndex, correctIndex) {
+  if (selectedIndex === correctIndex) {
+    elements.quizFeedback.textContent = '🎉 大正解！すごいぞ！ロックを解除したよ！✨';
+    elements.quizFeedback.className = 'quiz-feedback success';
+    setTimeout(() => {
+      // Unlock daily limit for extra bonus time
+      STATE.dailyUsageSeconds = 0; // reset for bonus or allow continuation
+      localStorage.setItem('krdai_daily_usage', '0');
+      hideLockModal();
+    }, 1500);
+  } else {
+    elements.quizFeedback.textContent = '❌ 残念！もう一度よく考えて選んでね！';
+    elements.quizFeedback.className = 'quiz-feedback error';
+  }
+}
+
 // Initialize Application
 function init() {
   elements.apiKeyInput.value = STATE.apiKey;
@@ -212,6 +426,7 @@ function init() {
 
   initSpeechRecognition();
   renderRandomSuggestions();
+  startUsageTimer();
 
   elements.btnSettings.addEventListener('click', () => toggleModal(true));
   elements.btnCloseModal.addEventListener('click', () => toggleModal(false));
@@ -290,6 +505,13 @@ function resetChatSession() {
 // Ask or Reply in Chat Thread
 async function handleAskQuestion() {
   if (STATE.isDisplayingDialogue) return;
+  if (STATE.isLocked) {
+    if (!elements.lockModal) return;
+    elements.lockModal.classList.remove('hidden');
+    return;
+  }
+
+  lastInteractionTime = Date.now();
 
   const userText = elements.questionInput.value.trim();
   if (!userText) {

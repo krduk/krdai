@@ -30,6 +30,9 @@
           <span class="title-text">KRDAI <span class="accent-text">（クロダイ）</span></span>
         </h1>
         <div class="header-actions">
+          <div id="timer-badge" class="timer-badge" title="本日の使用時間 / 連続使用時間">
+            ⏳ <span id="timer-text">0分 / 0分</span>
+          </div>
           <button id="btn-reset-chat" class="btn-cyber-icon" title="新しくやり直す">
             🔄 <span class="btn-label">RESET</span>
           </button>
@@ -182,6 +185,30 @@
         </div>
         <div class="modal-footer">
           <button id="btn-save-settings" class="btn-primary-scifi">SAVE & CLOSE</button>
+        </div>
+      </div>
+    <!-- Time Lock Modal -->
+    <div id="lock-modal" class="modal-overlay hidden">
+      <div class="modal-card scifi-modal lock-modal-card">
+        <div class="modal-header lock-modal-header">
+          <h3 id="lock-title">🛑 休憩タイムだよ！</h3>
+        </div>
+        <div class="modal-body">
+          <p id="lock-reason-text" class="lock-reason-text"></p>
+          
+          <div id="quiz-container" class="quiz-container hidden">
+            <div class="quiz-header">
+              <span class="quiz-badge">🔓 解除クイズ</span>
+              <p id="quiz-question-text" class="quiz-question"></p>
+            </div>
+            <div id="quiz-options-group" class="quiz-options-group"></div>
+            <p id="quiz-feedback" class="quiz-feedback"></p>
+          </div>
+
+          <div id="rest-timer-container" class="rest-timer-container hidden">
+            <p class="rest-notice">30分間しっかり休憩しよう！</p>
+            <div class="rest-countdown"><span id="rest-countdown-text">30:00</span></div>
+          </div>
         </div>
       </div>
     </div>
